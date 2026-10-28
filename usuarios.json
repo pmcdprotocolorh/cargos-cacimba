@@ -1,0 +1,12 @@
+{
+ "v": 1,
+ "iter": 200000,
+ "usuarios": [
+  {
+   "login": "admin",
+   "salt": "Sjg5rHNbFOPDpchVa4KMXg==",
+   "iv": "v7GRY3bgWk8NiluU",
+   "chave": "5HvnymXtyl1fotbZfDyRFp6h5NZ+nJWPEiIJJG8egvn2iOZpQ4wTtaSgyAhD1d4W"
+  }
+ ]
+}

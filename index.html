@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cargos Lei 230/2026 – Cacimba de Dentro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Ferramenta de consulta: resumo no topo, tabela de secretarias, detalhe por secretaria e busca por nome sempre à mão */
+  --bg:#f4f6f8; --surface:#ffffff; --ink:#18232e; --muted:#5b6977; --line:#d9e0e7;
+  --accent:#1d5c8f; --accent-soft:#e3eef7;
+  --ok:#25784a; --ok-soft:#e1f2e8; --warn:#9a5b00; --warn-soft:#fbefd9; --bad:#b3342a; --bad-soft:#f9e3e0; --gray-soft:#eceff2;
+  --s-ef:#1d5c8f; --s-cm:#c0612b; --s-ct:#7a8a2e; --s-ot:#9aa6b2;
+  --f-display:"Source Serif 4", Georgia, serif; --f-body:"Public Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#11171d; --surface:#18212a; --ink:#e6ecf1; --muted:#9aa8b5; --line:#2b3743;
+  --accent:#6fb0e6; --accent-soft:#1d3346;
+  --ok:#6cc893; --ok-soft:#173527; --warn:#e7b25a; --warn-soft:#3a2c13; --bad:#f08b80; --bad-soft:#3d1d1a; --gray-soft:#222c36; --s-ef:#6fb0e6; --s-cm:#ee9a62; --s-ct:#b9c86a; --s-ot:#5d6b78;
+  color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#11171d; --surface:#18212a; --ink:#e6ecf1; --muted:#9aa8b5; --line:#2b3743;
+  --accent:#6fb0e6; --accent-soft:#1d3346;
+  --ok:#6cc893; --ok-soft:#173527; --warn:#e7b25a; --warn-soft:#3a2c13; --bad:#f08b80; --bad-soft:#3d1d1a; --gray-soft:#222c36; --s-ef:#6fb0e6; --s-cm:#ee9a62; --s-ct:#b9c86a; --s-ot:#5d6b78;
+  color-scheme:dark; }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);}
+a{color:var(--accent)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 20px 60px;display:grid;gap:22px}
+header{display:grid;gap:4px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:28px}
+h2{font-size:21px}
+h3{font-size:17px}
+.sub{color:var(--muted);font-size:13.5px}
+.num{font-variant-numeric:tabular-nums}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+/* busca */
+.search{display:grid;gap:10px}
+.search label{font-weight:600}
+.search input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:16px}
+.results{display:grid;gap:8px;max-height:460px;overflow:auto}
+.res{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.res .nm{font-weight:600}
+.res .meta{grid-column:1/-1;font-size:13.5px;color:var(--muted);display:grid;gap:2px}
+.res .meta b{color:var(--ink);font-weight:600}
+.hint{font-size:13.5px;color:var(--muted)}
+/* tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:2px}
+.tile .k{font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.tile .v{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}
+.tile .d{font-size:12.5px;color:var(--muted)}
+.tile.ok .v{color:var(--ok)} .tile.bad .v{color:var(--bad)} .tile.warn .v{color:var(--warn)} .tile.acc .v{color:var(--accent)}
+.sectionhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px}
+/* tabela */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--accent-soft)}
+tr.click td:first-child a{font-weight:600;text-decoration:none}
+tfoot td{font-weight:700;border-bottom:none}
+.bar{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--gray-soft);min-width:110px}
+.bar span{display:block;height:100%}
+.bar .o{background:var(--ok)} .bar .x{background:var(--bad)}
+.bar.wide{height:12px}
+.bar .e{background:var(--s-ef)} .bar .cm{background:var(--s-cm)} .bar .ct{background:var(--s-ct)} .bar .ot{background:var(--s-ot)}
+.excs{display:grid;gap:8px}
+details.exc{border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:8px;background:var(--bg)}
+details.exc.vag{border-left-color:var(--ok)}
+details.exc summary{cursor:pointer;padding:10px 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+details.exc summary .sn{font-weight:600}
+details.exc summary .chips{display:flex;flex-wrap:wrap;gap:6px}
+.excbody{padding:4px 14px 14px;display:grid;gap:14px}
+.grp{display:grid;gap:6px}
+.pls{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 16px}
+.pl{display:grid;font-size:13.5px;line-height:1.35;padding:3px 0}
+.pl a{font-weight:600;text-decoration:none}
+.pl a:hover{text-decoration:underline}
+.mut{color:var(--muted)}
+.two{align-items:start;display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+/* chips */
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.c-ok{background:var(--ok-soft);color:var(--ok)} .c-vago{background:var(--gray-soft);color:var(--muted)}
+.c-parc{background:var(--warn-soft);color:var(--warn)} .c-exc{background:var(--bad-soft);color:var(--bad)}
+.c-prov{background:var(--warn-soft);color:var(--warn)} .c-nao{background:var(--bad-soft);color:var(--bad)}
+.c-v{background:var(--accent-soft);color:var(--accent)}
+/* detalhe */
+.detail{display:grid;gap:16px}
+.back{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;justify-self:start;background:var(--surface)}
+.back:hover{border-color:var(--accent)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg button{border:1px solid var(--line);background:var(--surface);padding:6px 12px;cursor:pointer}
+.seg button:first-child{border-radius:8px 0 0 8px}
+.seg button:last-child{border-radius:0 8px 8px 0}
+.seg button+button{border-left:none}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.occ{display:grid;gap:3px;font-size:13.5px}
+.occ .o{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
+.occ .mut{color:var(--muted)}
+.note{font-size:13px;color:var(--muted)}
+.callout{border-left:4px solid var(--warn);background:var(--warn-soft);padding:10px 14px;border-radius:0 8px 8px 0;font-size:14px}
+.callout.bad{border-left-color:var(--bad);background:var(--bad-soft)}
+.list{display:grid;gap:8px}
+.list .it{padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:14px;display:grid;gap:2px}
+.notes{display:grid;gap:8px;font-size:14px}
+.notes li{max-width:80ch}
+footer{font-size:12.5px;color:var(--muted)}
+[hidden]{display:none!important}
+.btn{display:inline-block;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:600;font-size:14px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn.small{padding:3px 10px;font-size:12.5px;font-weight:500}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.login{max-width:420px;width:100%;justify-self:center}
+.loginform,.userform{display:grid;gap:8px}
+.userform{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));align-items:end}
+.userform label{display:block;font-size:13px;font-weight:600}
+input:not([type=file]),select{padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);width:100%}
+select{width:auto;max-width:100%}
+.err{color:var(--bad);font-size:14px;min-height:1.2em}
+.userbar{display:flex;justify-content:flex-end;align-items:center;gap:10px}
+.vh{position:absolute;width:1px;height:1px;opacity:0}
+pre.ex{margin:0;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;font-size:13px;overflow-x:auto}
+details.users summary{cursor:pointer;font-weight:600}
+@media (max-width:640px){ h1{font-size:23px} .tile .v{font-size:24px} .hide-sm{display:none} }
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Estrutura de cargos comissionados – Lei nº 230/2026</h1>
+    <div class="sub">Prefeitura Municipal de Cacimba de Dentro/PB · Lei de 07/04/2026 cruzada com as Relações de Funcionários de outubro/2026 da Prefeitura e do Fundo Municipal de Saúde (emitidas em 28/10/2026)</div>
+  </header>
+
+  <section class="card login" id="login-card" aria-labelledby="h-login">
+    <h2 id="h-login">Acesso restrito</h2>
+    <form id="login-form" class="loginform">
+      <label for="login">Login</label><input id="login" autocomplete="username" required>
+      <label for="senha">Senha</label><input id="senha" type="password" autocomplete="current-password" required>
+      <button type="submit" class="btn primary" id="login-btn">Entrar</button>
+      <div id="login-msg" class="err" role="alert"></div>
+    </form>
+  </section>
+
+  <div id="app" hidden style="display:grid;gap:22px">
+  <div class="userbar"><span class="note">Conectado como <b id="who"></b></span><button type="button" class="btn small" id="logout">Sair</button></div>
+  <section class="card search" aria-labelledby="lbl-busca">
+    <label id="lbl-busca" for="q">Consultar servidor pelo nome</label>
+    <input id="q" type="search" placeholder="Digite parte do nome, ex.: maria jose" autocomplete="off">
+    <div id="results" class="results" aria-live="polite"></div>
+  </section>
+
+  <section class="card" style="display:grid;gap:14px" aria-labelledby="h-tools">
+    <h2 id="h-tools">Atualizar por arquivo TXT</h2>
+    <p class="note" style="margin:0">Uma linha por servidor, com os campos separados por ponto e vírgula: <code>NOME; CARGO; NOMEADO ou EXONERADO; SECRETARIA</code>. A secretaria é opcional, mas evita dúvida em cargos que existem em várias secretarias (ex.: Assessor Nível I). Antes de aplicar, a página mostra o que vai mudar.</p>
+    <pre class="ex">MARIA DA SILVA SOUZA; Coordenador de Laboratório; NOMEADO; Hospital
+JOSE PEREIRA LIMA; Assessor Nível II; EXONERADO; Finanças
+ANA LUCIA COSTA; Assessor Nível I; NOMEADO; Educação</pre>
+    <div><label for="txt-file" class="btn primary">Escolher arquivo TXT</label><input id="txt-file" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
+    <div id="txt-preview" style="display:grid;gap:10px"></div>
+    <div id="save-state"></div>
+    <details class="users"><summary>Usuários e senhas</summary>
+      <div style="display:grid;gap:10px;padding-top:10px">
+        <div id="user-list" class="toolbar"></div>
+        <form id="user-form" class="userform">
+          <div><label for="nu-login">Login</label><input id="nu-login" autocomplete="off" required></div>
+          <div><label for="nu-senha">Nova senha</label><input id="nu-senha" type="password" autocomplete="new-password" required></div>
+          <div><label for="nu-senha2">Confirmar senha</label><input id="nu-senha2" type="password" autocomplete="new-password" required></div>
+          <button type="submit" class="btn primary">Criar usuário ou trocar senha</button>
+        </form>
+        <div id="user-msg" class="note"></div>
+        <p class="note" style="margin:0">Para trocar a sua própria senha, digite o seu login com a senha nova. As senhas não ficam gravadas em lugar nenhum: o usuarios.json guarda só a chave dos dados cifrada com cada senha.</p>
+      </div></details>
+  </section>
+
+  <main id="main"></main>
+  </div>
+
+  <footer>Os dados ficam cifrados (AES-256) no arquivo dados.enc e só abrem com login e senha válidos. CPF, PIS e data de nascimento não foram incluídos.</footer>
+</div>
+
+<script>
+const esc = s => String(s ?? '').replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const fmt = n => n.toLocaleString('pt-BR');
+const STLABEL = {exata:'Enquadrado', provavel:'Equivalência provável', nao:'Sem correspondência na lei'};
+const STCLS = {exata:'c-ok', provavel:'c-prov', nao:'c-nao'};
+
+function cargoStatus(c){
+  const n = c.oc.length;
+  if (n === 0) return ['Vago', 'c-vago'];
+  if (n > c.qtd) return [`Excedido +${n - c.qtd}`, 'c-exc'];
+  if (n < c.qtd) return [`${c.qtd - n} vaga${c.qtd - n > 1 ? 's' : ''}`, 'c-parc'];
+  return ['Preenchido', 'c-ok'];
+}
+
+/* ---------- Busca ---------- */
+const q = document.getElementById('q'), out = document.getElementById('results');
+function personCard(p){
+  let lei = '';
+  if (p.ex) return `<div class="res"><div class="nm">${esc(p.n)}</div><div><span class="chip c-nao">Exonerado em ${esc(p.ex)}</span></div>
+    <div class="meta"><div><b>Último cargo:</b> ${esc(p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome)} – ${esc(U[p.u] ? U[p.u].nome : p.s)}</div><div>${esc(p.f)} · matrícula ${esc(p.m)}</div></div></div>`;
+  if (p.v === 'Comissionado'){
+    const u = U[p.u];
+    if (p.st === 'nao') lei = `<div><b>Na lei:</b> sem correspondência em ${esc(u.nome)}</div>`;
+    else lei = `<div><b>Na lei:</b> ${esc(C[p.cl].nome)} (${esc(C[p.cl].simbolo)}) – <a href="#sec-${u.id}">${esc(u.nome)}</a></div>`;
+  }
+  const chip = p.v === 'Comissionado' ? ` <span class="chip ${STCLS[p.st]}">${STLABEL[p.st]}</span>` : '';
+  return `<div class="res">
+    <div class="nm">${esc(p.n)}</div><div><span class="chip c-v">${esc(p.v)}</span>${chip}</div>
+    <div class="meta">
+      <div><b>Cargo (folha):</b> ${esc(p.c)}</div>
+      <div><b>Secretaria (folha):</b> ${esc(p.s)} <span class="hide-sm">· ${esc(p.l)}</span></div>
+      ${lei}
+      <div>${esc(p.f)} · matrícula ${esc(p.m)} · admissão ${esc(p.adm)}</div>
+      ${p.obs ? `<div>${esc(p.obs)}</div>` : ''}
+    </div></div>`;
+}
+function doSearch(){
+  const t = norm(q.value).trim().split(/\s+/).filter(Boolean);
+  if (!t.length){ out.innerHTML = `<div class="hint">${fmt(D.pessoas.length)} vínculos nas folhas de outubro/2026 (Prefeitura e Saúde). A busca ignora acentos e aceita partes do nome em qualquer ordem.</div>`; return; }
+  const hits = IDX.filter(([n]) => t.every(w => n.includes(w))).map(x => x[1]);
+  if (!hits.length){ out.innerHTML = `<div class="hint">Nenhum servidor encontrado com “${esc(q.value)}”. Confira a grafia ou digite só o primeiro nome.</div>`; return; }
+  out.innerHTML = `<div class="hint">${hits.length} resultado${hits.length>1?'s':''}${hits.length>60?' (mostrando os 60 primeiros; refine a busca)':''}</div>` + hits.slice(0,60).map(personCard).join('');
+}
+q.addEventListener('input', doSearch);
+
+/* ---------- Painel ---------- */
+const main = document.getElementById('main');
+function overview(){
+  const V = D.vinculos, tot = Object.values(V).reduce((a,b)=>a+b,0);
+  const pessoasDist = new Set(D.pessoas.filter(p => !p.ex).map(p => p.n)).size;
+  const T = D.unidades.reduce((a,u)=>{['previstos','ocupados','vagas','excedentes','n_nao','comissionados_folha'].forEach(k=>a[k]=(a[k]||0)+u[k]);return a;},{});
+  const groups = [...new Set(D.unidades.map(u=>u.grupo))];
+  let rows = '';
+  groups.forEach(g => {
+    rows += `<tr><th colspan="7" style="padding-top:16px">${esc(g)}</th></tr>`;
+    D.unidades.filter(u=>u.grupo===g).forEach(u => {
+      const w = Math.max(u.previstos, 1);
+      rows += `<tr class="click" data-u="${u.id}" tabindex="0">
+        <td><a href="#sec-${u.id}">${esc(u.nome)}</a></td>
+        <td class="n">${u.previstos}</td><td class="n">${u.ocupados}</td><td class="n">${u.vagas}</td>
+        <td class="n">${u.excedentes || '–'}</td><td class="n">${u.n_nao || '–'}</td>
+        <td class="hide-sm"><div class="bar" title="${u.ocupados} de ${u.previstos} cargos ocupados"><span class="o" style="width:${u.ocupados/w*100}%"></span></div></td></tr>`;
+    });
+  });
+  const MET = metrics();
+  main.innerHTML = `
+  <div style="display:grid;gap:22px">
+  <section style="display:grid;gap:12px" aria-labelledby="h-vin">
+    <div class="sectionhead"><h2 id="h-vin">Servidores na folha por vínculo</h2><span class="sub">${fmt(tot)} vínculos · ${fmt(pessoasDist)} pessoas (há quem tenha mais de uma matrícula)</span></div>
+    <div class="tiles">
+      <div class="tile acc"><span class="k">Efetivos</span><span class="v">${fmt(V.Efetivo||0)}</span></div>
+      <div class="tile acc"><span class="k">Comissionados</span><span class="v">${fmt(V.Comissionado||0)}</span></div>
+      <div class="tile acc"><span class="k">Contratados</span><span class="v">${fmt(V.Contratado||0)}</span></div>
+      <div class="tile"><span class="k">Outros</span><span class="v">${fmt(V.Outros||0)}</span><span class="d">Prefeito e vice, conselheiros tutelares, pensionistas</span></div>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:12px" aria-labelledby="h-lei">
+    <div class="sectionhead"><h2 id="h-lei">Cargos comissionados: lei × folha</h2><span class="sub">${T.comissionados_folha} comissionados na folha comparados com os ${T.previstos} cargos da lei</span></div>
+    <div class="tiles">
+      <div class="tile"><span class="k">Previstos na lei</span><span class="v">${T.previstos}</span><span class="d">283 do Anexo I + 6 assessorias do art. 28 (Educação) + 9 do Hospital (Lei 147/2023)</span></div>
+      <div class="tile ok"><span class="k">Ocupados</span><span class="v">${T.ocupados}</span><span class="d">dentro da quantidade da lei</span></div>
+      <div class="tile warn"><span class="k">Vagos</span><span class="v">${T.vagas}</span><span class="d">faltam preencher</span></div>
+      <div class="tile bad"><span class="k">Excedentes</span><span class="v">${T.excedentes}</span><span class="d">acima da quantidade do cargo</span></div>
+      <div class="tile bad"><span class="k">Sem correspondência</span><span class="v">${T.n_nao}</span><span class="d">cargo da folha não existe na lei</span></div>
+    </div>
+  </section>
+
+  <section class="card" style="display:grid;gap:12px" aria-labelledby="h-tab">
+    <div class="sectionhead"><h2 id="h-tab">Secretarias e órgãos</h2><span class="sub">Clique numa linha para ver cargo por cargo</span></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Órgão</th><th class="n">Previstos</th><th class="n">Ocupados</th><th class="n">Vagos</th><th class="n">Excedentes</th><th class="n">Sem corresp.</th><th class="hide-sm">Preenchimento</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td>Total</td><td class="n">${T.previstos}</td><td class="n">${T.ocupados}</td><td class="n">${T.vagas}</td><td class="n">${T.excedentes}</td><td class="n">${T.n_nao}</td><td class="hide-sm"></td></tr></tfoot>
+    </table></div>
+    <div class="legend"><span><i style="background:var(--ok)"></i>cargos ocupados dentro da quantidade da lei</span><span><i style="background:var(--gray-soft);border:1px solid var(--line)"></i>vagos</span></div>
+  </section>
+
+  ${MET}
+  ${saudeSection()}
+
+  ${historico()}
+  <section class="card" style="display:grid;gap:10px" aria-labelledby="h-crit">
+    <h2 id="h-crit">Como o cruzamento foi feito</h2>
+    <ul class="notes">
+      <li>A quantidade de cada cargo vem do Anexo II da lei, conferida com o Anexo I: os totais por símbolo batem (283 cargos).</li>
+      <li>O Hospital Municipal Luiz Olegário da Silva tem seus cargos na Lei 147/2023 (o art. 31 da Lei 230/2026 a mantém): 9 cargos, 1 de cada, identificados pelo vencimento em vez de símbolo. Na folha, os ocupantes estão lotados em Saúde Comissionados.</li>
+      <li>O art. 28, §1º prevê 2 assessorias de cada nível (I, II e III) na Educação, mas elas não aparecem nos Anexos I e II. Elas foram incluídas aqui e estão marcadas.</li>
+      <li>Cada comissionado foi ligado a um cargo da lei pelo nome do cargo e pela lotação na folha. Assessores I, II e III (CC-6, CC-7 e CC-8) contam nas assessorias do mesmo nível da secretaria em que estão lotados.</li>
+      <li><b>Excedente</b>: o cargo existe na lei, mas há mais ocupantes do que a quantidade prevista. A página não escolhe quem fica; mostra todos os ocupantes.</li>
+      <li><b>Sem correspondência</b>: o cargo da folha não existe na lei para aquela secretaria (por exemplo, “Coordenador(a)” sem especificação, ou Assessor II/III no Gabinete, que só prevê Assessoria Nível I).</li>
+      <li><b>Equivalência provável</b>: nomes diferentes que parecem ser o mesmo cargo (ex.: “Diretor de Controle Interno” → Diretoria de Controle e Auditoria). Vale conferir.</li>
+      <li>Os comissionados da Saúde vêm da folha do Fundo Municipal de Saúde. Nela, assessores usam símbolos antigos (CC-2, CC-3) e foram ligados pelo nível (I, II, III).</li>
+      <li>O vínculo vem da lotação da folha: “efetivo” → efetivo; “contratados”/“contratos”, programas (PSB, Criança Feliz, PSF, NASF, PEVA, dentistas) , plantonistas e SAMU → contratado; lotações de comissionados → comissionado.</li>
+      <li><b>Nível equivalente</b> (na lista de excedidos): para quem está sem correspondência, o nível foi estimado pelo cargo da folha. Assessor I, II e III → CC-6, CC-7 e CC-8; coordenador → CC-4; diretor → CC-3.</li>
+    </ul>
+  </section>
+  </div>`;
+  main.querySelectorAll('[data-q]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); q.value = a.dataset.q; doSearch(); q.scrollIntoView({behavior:'smooth', block:'start'}); }));
+  main.querySelectorAll('tr.click').forEach(tr => {
+    const go = () => location.hash = 'sec-' + tr.dataset.u;
+    tr.addEventListener('click', e => { if (e.target.tagName !== 'A') go(); });
+    tr.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  });
+}
+
+/* ---------- Métricas ---------- */
+const pct = (a,b) => b ? (a/b*100).toLocaleString('pt-BR',{maximumFractionDigits:1}) + '%' : '–';
+const sumV = c => (c.Efetivo||0)+(c.Comissionado||0)+(c.Contratado||0)+(c.Outros||0);
+function stackBar(c){
+  const t = sumV(c) || 1;
+  return `<div class="bar wide" title="Efetivos ${c.Efetivo||0} · Comissionados ${c.Comissionado||0} · Contratados ${c.Contratado||0}${c.Outros?' · Outros '+c.Outros:''}">
+    <span class="e" style="width:${(c.Efetivo||0)/t*100}%"></span><span class="cm" style="width:${(c.Comissionado||0)/t*100}%"></span><span class="ct" style="width:${(c.Contratado||0)/t*100}%"></span><span class="ot" style="width:${(c.Outros||0)/t*100}%"></span></div>`;
+}
+const LEG = `<div class="legend"><span><i style="background:var(--s-ef)"></i>Efetivos</span><span><i style="background:var(--s-cm)"></i>Comissionados</span><span><i style="background:var(--s-ct)"></i>Contratados</span><span><i style="background:var(--s-ot)"></i>Outros</span></div>`;
+function personLine(p, extra=''){
+  return `<div class="pl"><a href="#" data-q="${esc(p.n)}">${esc(p.n)}</a><span class="mut">${esc(p.c)} · adm. ${esc(p.adm)}${extra}</span></div>`;
+}
+function metrics(){
+  const V = D.vinculos, ef = V.Efetivo||0, cm = V.Comissionado||0, ct = V.Contratado||0, tot = sumV(V);
+  // por secretaria (lotação da folha)
+  const bySec = Object.entries(D.vinculos_secretaria).filter(([s,c]) => (c.Efetivo||0)+(c.Comissionado||0)+(c.Contratado||0) > 0)
+    .sort((a,b) => sumV(b[1]) - sumV(a[1]));
+  const secRows = bySec.map(([s,c]) => {
+    const t = sumV(c), cmP = (c.Comissionado||0)/t;
+    const flag = cmP >= .5 ? '<span class="chip c-exc">maioria comissionada</span>' : '';
+    return `<tr><td>${esc(s)} ${flag}</td><td class="n">${t}</td><td class="n">${pct(c.Efetivo||0,t)}</td><td class="n">${pct(c.Comissionado||0,t)}</td><td class="n">${pct(c.Contratado||0,t)}</td><td class="hide-sm" style="min-width:180px">${stackBar(c)}</td></tr>`;
+  }).join('');
+  // excedidos
+  const exc = D.unidades.filter(u => u.excedentes || u.n_nao).sort((a,b) => (b.excedentes+b.n_nao) - (a.excedentes+a.n_nao));
+  const totRealoc = exc.reduce((a,u) => a + u.excedentes + u.n_nao, 0);
+  const excCards = exc.map(u => {
+    const cs = u.cargos.filter(c => c.exced > 0).map(c => {
+      const ps = c.oc.map(m => P[m]).sort((a,b) => a.adm.split('/').reverse().join('').localeCompare(b.adm.split('/').reverse().join('')));
+      return `<div class="grp"><div class="gh"><b>${esc(c.nome)}</b> <span class="mut">(${esc(c.simbolo)})</span> <span class="chip c-exc">${c.oc.length} ocupantes para ${c.qtd} vaga${c.qtd>1?'s':''} · ${c.exced} a realocar</span></div>
+        <div class="pls">${ps.map(p => personLine(p)).join('')}</div></div>`;
+    }).join('');
+    const ne = u.ne.length ? `<div class="grp"><div class="gh"><b>Sem correspondência na lei</b> <span class="chip c-nao">${u.ne.length} a realocar</span></div>
+        <div class="pls">${u.ne.map(m => P[m]).map(p => personLine(p, p.sym && p.sym !== '?' ? ` · nível equiv. ${p.sym}` : '')).join('')}</div></div>` : '';
+    return `<details class="exc"><summary><span class="sn">${esc(u.nome)}</span>
+        <span class="chips">${u.excedentes ? `<span class="chip c-exc">${u.excedentes} excedentes</span>` : ''}${u.n_nao ? `<span class="chip c-nao">${u.n_nao} sem correspondência</span>` : ''}<span class="chip c-vago">${u.vagas} vagas na própria secretaria</span></span></summary>
+        <div class="excbody">${cs}${ne}<a href="#sec-${u.id}">Ver ${esc(u.nome)} cargo por cargo →</a></div></details>`;
+  }).join('');
+  // vagas disponíveis por secretaria
+  const vag = D.unidades.filter(u => u.vagas > 0).sort((a,b) => b.vagas - a.vagas);
+  const totVag = vag.reduce((a,u) => a + u.vagas, 0);
+  const vagCards = vag.map(u => {
+    const cs = u.cargos.filter(c => c.vagas > 0);
+    const rows = cs.map(c => `<div class="pl"><b>${esc(c.nome)}</b><span class="mut">${esc(c.simbolo)} · ${c.vagas} vaga${c.vagas>1?'s':''}${c.oc.length?` (${c.oc.length} de ${c.qtd} ocupada${c.oc.length>1?'s':''})`:''}</span></div>`).join('');
+    return `<details class="exc vag"><summary><span class="sn">${esc(u.nome)}</span>
+        <span class="chips"><span class="chip c-ok">${u.vagas} vaga${u.vagas>1?'s':''} em ${cs.length} cargo${cs.length>1?'s':''}</span>${(u.excedentes+u.n_nao)?`<span class="chip c-exc">${u.excedentes+u.n_nao} a realocar daqui</span>`:''}</span></summary>
+        <div class="excbody"><div class="pls">${rows}</div><a href="#sec-${u.id}">Ver ${esc(u.nome)} cargo por cargo →</a></div></details>`;
+  }).join('');
+  return `
+  <section class="card" style="display:grid;gap:18px" aria-labelledby="h-met">
+    <div class="sectionhead"><h2 id="h-met">Métricas</h2><span class="sub">Prefeitura + Fundo Municipal de Saúde</span></div>
+
+    <div style="display:grid;gap:12px">
+      <h3>Efetivos × comissionados × contratados</h3>
+      <div class="tiles">
+        <div class="tile acc"><span class="k">Efetivos</span><span class="v">${pct(ef,tot)}</span><span class="d">${fmt(ef)} de ${fmt(tot)} vínculos</span></div>
+        <div class="tile acc"><span class="k">Comissionados</span><span class="v">${pct(cm,tot)}</span><span class="d">${fmt(cm)} vínculos</span></div>
+        <div class="tile acc"><span class="k">Contratados</span><span class="v">${pct(ct,tot)}</span><span class="d">${fmt(ct)} vínculos</span></div>
+        <div class="tile"><span class="k">Efetivos por comissionado</span><span class="v">${(ef/cm).toLocaleString('pt-BR',{maximumFractionDigits:2})}</span><span class="d">${fmt(ef)} ÷ ${fmt(cm)}</span></div>
+        <div class="tile"><span class="k">Temporários</span><span class="v">${pct(cm+ct,ef+cm+ct)}</span><span class="d">comissionados + contratados sobre efetivos + comissionados + contratados</span></div>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Secretaria (lotação na folha)</th><th class="n">Vínculos</th><th class="n">Efetivos</th><th class="n">Comiss.</th><th class="n">Contrat.</th><th class="hide-sm">Composição</th></tr></thead>
+        <tbody>${secRows}</tbody>
+        <tfoot><tr><td>Total</td><td class="n">${tot}</td><td class="n">${pct(ef,tot)}</td><td class="n">${pct(cm,tot)}</td><td class="n">${pct(ct,tot)}</td><td class="hide-sm">${stackBar(V)}</td></tr></tfoot>
+      </table></div>
+      ${LEG}
+    </div>
+
+    <div style="display:grid;gap:12px">
+      <div class="sectionhead"><h3>Secretarias com limite excedido</h3><span class="sub">${exc.length} órgãos · ${totRealoc} comissionados a realocar</span></div>
+      <p class="note" style="margin:0">Clique numa secretaria para ver os servidores. Nos cargos excedidos aparecem todos os ocupantes, do mais antigo para o mais recente; a quantidade “a realocar” é o que passa da lei. Clique num nome para abrir a ficha na busca.</p>
+      <div class="excs">${excCards}</div>
+    </div>
+
+    <div style="display:grid;gap:12px">
+      <div class="sectionhead"><h3>Para onde realocar: cargos vagos</h3><span class="sub">${vag.length} órgãos · ${totVag} vagas</span></div>
+      <p class="note" style="margin:0">Clique numa secretaria para ver os cargos que estão disponíveis nela.</p>
+      <div class="excs">${vagCards}</div>
+    </div>
+  </section>`;
+}
+
+/* ---------- Histórico ---------- */
+function historico(){
+  const H = D.historico || [];
+  if (!H.length) return `<section class="card" style="display:grid;gap:8px"><h2>Histórico de movimentações</h2><p class="note" style="margin:0">Nenhuma nomeação ou exoneração registrada ainda. Use “Atualizar por arquivo TXT” acima.</p></section>`;
+  return `<section class="card" style="display:grid;gap:12px"><div class="sectionhead"><h2>Histórico de movimentações</h2><span class="sub">${H.length} registro${H.length>1?'s':''}</span></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Ação</th><th>Servidor</th><th>Cargo e órgão</th><th>Usuário</th></tr></thead>
+    <tbody>${H.slice(0,200).map(h => `<tr><td class="n">${new Date(h.d).toLocaleString('pt-BR')}</td><td><span class="chip ${h.a==='Exoneração'?'c-exc':h.a==='Remanejamento'?'c-prov':'c-ok'}">${esc(h.a)}</span></td><td>${esc(h.n)}</td><td>${esc(h.det)}</td><td>${esc(h.u)}</td></tr>`).join('')}</tbody></table></div></section>`;
+}
+
+/* ---------- Saúde ---------- */
+function saudeSection(){
+  const S = D.pessoas.filter(p => !p.ex && (p.f === 'Fundo Municipal de Saúde' || (p.f === 'Atualização' && p.u === 'saude')));
+  const V = {}; S.forEach(p => V[p.v] = (V[p.v]||0) + 1);
+  const t = S.length, u = U.saude;
+  const LOT = {}; S.forEach(p => { LOT[p.l] = LOT[p.l] || {}; LOT[p.l][p.v] = (LOT[p.l][p.v]||0) + 1; });
+  const lotRows = Object.entries(LOT).sort((a,b)=>sumV(b[1])-sumV(a[1])).map(([l,c]) =>
+    `<tr><td>${esc(l)}</td><td class="n">${c.Efetivo||'–'}</td><td class="n">${c.Comissionado||'–'}</td><td class="n">${c.Contratado||'–'}</td><td class="n"><b>${sumV(c)}</b></td></tr>`).join('');
+  const CG = {}; S.filter(p => p.v !== 'Comissionado').forEach(p => { let k = p.c.replace(/\s*-\s*SAMU|\/PLANTÃO\/SAMU|-PLANTÃO| EFETIVO$| PSF$| ESF$|\/LEI 04\/97/g,'').trim();
+    k = k.replace(/^TEC DE/,'TECNICO DE').replace(/^ENFERMEIR.*/,'ENFERMEIRO(A)').replace(/^MEDICO.*/,'MEDICO').replace(/^MOTORISTA.*AMBULANCIA/,'MOTORISTA DE AMBULANCIA'); CG[k] = CG[k] || {}; CG[k][p.v] = (CG[k][p.v]||0)+1; });
+  const cgRows = Object.entries(CG).sort((a,b)=>sumV(b[1])-sumV(a[1])).slice(0,15).map(([k,c]) =>
+    `<tr><td>${esc(k)}</td><td class="n">${c.Efetivo||'–'}</td><td class="n">${c.Contratado||'–'}</td><td class="n"><b>${sumV(c)}</b></td></tr>`).join('');
+  return `
+  <section class="card" style="display:grid;gap:18px" aria-labelledby="h-sau">
+    <div class="sectionhead"><h2 id="h-sau">Saúde</h2><span class="sub">Folha do Fundo Municipal de Saúde · outubro/2026</span></div>
+    <div class="tiles">
+      <div class="tile"><span class="k">Vínculos</span><span class="v">${t}</span></div>
+      <div class="tile acc"><span class="k">Efetivos</span><span class="v">${V.Efetivo||0}</span><span class="d">${pct(V.Efetivo||0,t)}</span></div>
+      <div class="tile acc"><span class="k">Comissionados</span><span class="v">${V.Comissionado||0}</span><span class="d">${pct(V.Comissionado||0,t)}</span></div>
+      <div class="tile acc"><span class="k">Contratados</span><span class="v">${V.Contratado||0}</span><span class="d">${pct(V.Contratado||0,t)}</span></div>
+    </div>
+    ${stackBar(V)}
+    <div style="display:grid;gap:12px">
+      <div class="sectionhead"><h3>Comissionados da Saúde × Lei 230/2026</h3><a href="#sec-saude">Ver cargo por cargo →</a></div>
+      <div class="tiles">
+        <div class="tile"><span class="k">Previstos na lei</span><span class="v">${u.previstos}</span></div>
+        <div class="tile ok"><span class="k">Ocupados</span><span class="v">${u.ocupados}</span></div>
+        <div class="tile warn"><span class="k">Vagos</span><span class="v">${u.vagas}</span></div>
+        <div class="tile bad"><span class="k">Excedentes</span><span class="v">${u.excedentes}</span></div>
+        <div class="tile bad"><span class="k">Sem correspondência</span><span class="v">${u.n_nao}</span></div>
+      </div>
+    </div>
+    <div class="two">
+      <div style="display:grid;gap:8px"><h3>Por lotação</h3><div class="tbl-wrap"><table>
+        <thead><tr><th>Lotação (folha)</th><th class="n">Efet.</th><th class="n">Comis.</th><th class="n">Contr.</th><th class="n">Total</th></tr></thead>
+        <tbody>${lotRows}</tbody></table></div></div>
+      <div style="display:grid;gap:8px"><h3>Principais cargos (efetivos e contratados)</h3><div class="tbl-wrap"><table>
+        <thead><tr><th>Cargo</th><th class="n">Efet.</th><th class="n">Contr.</th><th class="n">Total</th></tr></thead>
+        <tbody>${cgRows}</tbody></table></div></div>
+    </div>
+  </section>`;
+}
+
+/* ---------- Detalhe ---------- */
+let filtro = 'todos';
+function detail(id){
+  const u = U[id]; if (!u) return overview();
+  const cargos = u.cargos.filter(c => filtro === 'todos' || (filtro === 'vagos' && c.oc.length < c.qtd) || (filtro === 'exc' && c.oc.length > c.qtd));
+  const rows = cargos.map(c => {
+    const [lab, cls] = cargoStatus(c);
+    const occ = c.oc.length ? c.oc.map(m => { const p = P[m];
+        return `<div class="o"><span>${esc(p.n)}</span><span class="mut">· ${esc(p.c)}</span>${p.st==='provavel'?' <span class="chip c-prov">provável</span>':''}</div>`; }).join('')
+      : '<span class="mut">ninguém</span>';
+    return `<tr><td><div>${esc(c.nome)}</div>${c.nota?`<div class="note">${esc(c.nota)}</div>`:''}</td>
+      <td>${esc(c.simbolo)}</td><td class="n">${c.qtd}</td><td class="n">${c.oc.length}</td>
+      <td><span class="chip ${cls}">${lab}</span></td><td><div class="occ">${occ}</div></td></tr>`;
+  }).join('') || `<tr><td colspan="6" class="note">Nenhum cargo neste filtro.</td></tr>`;
+  const ne = u.ne.map(m => { const p = P[m];
+    return `<div class="it"><div><b>${esc(p.n)}</b> · ${esc(p.c)}</div><div class="note">${esc(p.obs || '')} Matrícula ${esc(p.m)}.</div></div>`; }).join('');
+  const faltam = u.cargos.filter(c => c.oc.length < c.qtd);
+  const saude = '';
+  main.innerHTML = `<div class="detail">
+    <button class="back" id="back" type="button">← Voltar para todas as secretarias</button>
+    <div style="display:grid;gap:4px"><h2>${esc(u.nome)}</h2><div class="sub">Na lei: ${esc(u.nome_lei)}</div></div>
+    ${saude}
+    <div class="tiles">
+      <div class="tile"><span class="k">Previstos</span><span class="v">${u.previstos}</span></div>
+      <div class="tile ok"><span class="k">Ocupados</span><span class="v">${u.ocupados}</span></div>
+      <div class="tile warn"><span class="k">Vagos</span><span class="v">${u.vagas}</span><span class="d">${faltam.length} cargo${faltam.length!==1?'s':''} a preencher</span></div>
+      <div class="tile bad"><span class="k">Excedentes</span><span class="v">${u.excedentes}</span></div>
+      <div class="tile bad"><span class="k">Sem correspondência</span><span class="v">${u.n_nao}</span></div>
+    </div>
+    <section class="card" style="display:grid;gap:12px">
+      <div class="sectionhead"><h3>Cargos da lei</h3>
+        <div class="toolbar seg" role="group" aria-label="Filtrar cargos">
+          <button type="button" data-f="todos" aria-pressed="${filtro==='todos'}">Todos</button>
+          <button type="button" data-f="vagos" aria-pressed="${filtro==='vagos'}">Com vagas</button>
+          <button type="button" data-f="exc" aria-pressed="${filtro==='exc'}">Excedidos</button>
+        </div></div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Cargo</th><th>Símbolo</th><th class="n">Qtd. lei</th><th class="n">Na folha</th><th>Situação</th><th>Ocupantes (cargo na folha)</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    </section>
+    ${u.ne.length ? `<section class="card" style="display:grid;gap:12px"><h3>Comissionados sem correspondência na lei (${u.ne.length})</h3>
+      <p class="note" style="margin:0">Estão nesta secretaria na folha, mas o cargo que ocupam não existe nela pela nova lei. Precisam ser reenquadrados num cargo vago ou exonerados.</p>
+      <div class="list">${ne}</div></section>` : ''}
+  </div>`;
+  document.getElementById('back').addEventListener('click', () => { location.hash = 'painel'; });
+  main.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => { filtro = b.dataset.f; detail(id); }));
+}
+
+function route(){
+  const h = location.hash.slice(1);
+  if (h.startsWith('sec-')) { detail(h.slice(4)); window.scrollTo(0, document.getElementById('main').offsetTop - 10); }
+  else overview();
+}
+window.addEventListener('hashchange', () => { filtro = 'todos'; if (D) route(); });
+/* ================= Dados, criptografia e login ================= */
+let D, P = {}, U = {}, C = {}, IDX = [], KEY = null, USERS = null, LOGIN = '';
+const ITER_DEFAULT = 200000;
+const b64 = buf => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), ch => ch.charCodeAt(0));
+const enc = new TextEncoder(), dec = new TextDecoder();
+const DRAFT_KEY = 'cargos-lei230-rascunho';
+
+async function kekFrom(senha, salt, iter){
+  const base = await crypto.subtle.importKey('raw', enc.encode(senha), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:iter, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+}
+async function unwrapKey(user, senha){
+  const kek = await kekFrom(senha, unb64(user.salt), USERS.iter || ITER_DEFAULT);
+  const raw = await crypto.subtle.decrypt({name:'AES-GCM', iv:unb64(user.iv)}, kek, unb64(user.chave));
+  return crypto.subtle.importKey('raw', raw, 'AES-GCM', true, ['encrypt','decrypt']);
+}
+async function wrapKey(login, senha){
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const kek = await kekFrom(senha, salt, USERS.iter || ITER_DEFAULT);
+  const raw = await crypto.subtle.exportKey('raw', KEY);
+  const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, kek, raw);
+  return {login, salt:b64(salt), iv:b64(iv), chave:b64(ct)};
+}
+async function decryptData(obj){
+  const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:unb64(obj.iv)}, KEY, unb64(obj.ct));
+  return JSON.parse(dec.decode(pt));
+}
+function serializable(){
+  return {fonte:D.fonte, atualizado:D.atualizado, historico:D.historico || [],
+    unidades:D.unidades.map(u => ({id:u.id, nome:u.nome, nome_lei:u.nome_lei, grupo:u.grupo,
+      cargos:u.cargos.map(c => { const o = {id:c.id, nome:c.nome, simbolo:c.simbolo, qtd:c.qtd}; if (c.nota) o.nota = c.nota; return o; })})),
+    pessoas:D.pessoas};
+}
+async function encryptData(){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, KEY, enc.encode(JSON.stringify(serializable())));
+  return {v:1, atualizado:D.atualizado, iv:b64(iv), ct:b64(ct)};
+}
+function download(name, text){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type:'application/octet-stream'}));
+  a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+const lsGet = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
+const lsSet = (k, v) => { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch(e){} };
+
+function recompute(){
+  P = Object.fromEntries(D.pessoas.map(p => [p.m, p]));
+  U = Object.fromEntries(D.unidades.map(u => [u.id, u])); C = {};
+  D.unidades.forEach(u => { u.ne = []; u.cargos.forEach(c => { c.oc = []; C[c.id] = c; }); });
+  const act = D.pessoas.filter(p => !p.ex);
+  act.forEach(p => {
+    if (p.v !== 'Comissionado') return;
+    if (p.st === 'nao') { if (U[p.u]) U[p.u].ne.push(p.m); }
+    else if (C[p.cl]) C[p.cl].oc.push(p.m);
+  });
+  D.unidades.forEach(u => {
+    u.cargos.forEach(c => { const n = c.oc.length; c.ocup = Math.min(n, c.qtd); c.vagas = Math.max(c.qtd - n, 0); c.exced = Math.max(n - c.qtd, 0); });
+    const s = k => u.cargos.reduce((a, c) => a + c[k], 0);
+    u.previstos = s('qtd'); u.ocupados = s('ocup'); u.vagas = s('vagas'); u.excedentes = s('exced'); u.n_nao = u.ne.length;
+    u.comissionados_folha = u.cargos.reduce((a, c) => a + c.oc.length, 0) + u.n_nao;
+  });
+  D.vinculos = {}; D.vinculos_secretaria = {};
+  act.forEach(p => { D.vinculos[p.v] = (D.vinculos[p.v] || 0) + 1;
+    const vs = D.vinculos_secretaria[p.s] = D.vinculos_secretaria[p.s] || {}; vs[p.v] = (vs[p.v] || 0) + 1; });
+  IDX = D.pessoas.map(p => [norm(p.n), p]);
+}
+function refreshAll(){ recompute(); doSearch(); route(); renderTools(); }
+
+async function doLogin(e){
+  e.preventDefault();
+  const msg = document.getElementById('login-msg'), btn = document.getElementById('login-btn');
+  const login = document.getElementById('login').value.trim().toLowerCase(), senha = document.getElementById('senha').value;
+  msg.textContent = ''; btn.disabled = true; btn.textContent = 'Verificando…';
+  try {
+    if (!USERS) {
+      const r = await fetch('usuarios.json', {cache:'no-store'});
+      if (!r.ok) throw new Error('arquivo');
+      USERS = await r.json();
+    }
+    const u = USERS.usuarios.find(x => x.login === login);
+    if (!u) throw new Error('cred');
+    try { KEY = await unwrapKey(u, senha); } catch(_) { throw new Error('cred'); }
+    const r2 = await fetch('dados.enc', {cache:'no-store'});
+    if (!r2.ok) throw new Error('arquivo');
+    D = await decryptData(await r2.json());
+    LOGIN = login;
+    // rascunho deste navegador mais novo que o arquivo publicado?
+    const dr = lsGet(DRAFT_KEY);
+    if (dr) {
+      try { const o = JSON.parse(dr); if ((o.atualizado || '') > (D.atualizado || '')) { D = await decryptData(o); D._rascunho = true; } else lsSet(DRAFT_KEY, null); }
+      catch(_) { lsSet(DRAFT_KEY, null); }
+    }
+    document.getElementById('login-card').hidden = true;
+    document.getElementById('app').hidden = false;
+    document.getElementById('who').textContent = login;
+    document.getElementById('senha').value = '';
+    refreshAll();
+  } catch(err) {
+    msg.textContent = err.message === 'cred' ? 'Login ou senha incorretos.' :
+      'Não foi possível ler usuarios.json ou dados.enc. Abra o sistema pelo endereço do GitHub Pages, não pelo arquivo no computador.';
+  } finally { btn.disabled = false; btn.textContent = 'Entrar'; }
+}
+function logout(){ KEY = null; D = null; LOGIN = ''; document.getElementById('app').hidden = true; document.getElementById('login-card').hidden = false; document.getElementById('main').innerHTML = ''; document.getElementById('results').innerHTML = ''; q.value = ''; }
+
+/* ================= Atualização por TXT ================= */
+const STOP = new Set(['de','da','do','das','dos','e','a','o','as','os','para','na','no','em','p','municipal','secretaria','sec','cc']);
+const toks = s => norm(s).replace(/[^a-z0-9ivx ]/g, ' ').split(/\s+/).filter(w => w.length >= 3 && !STOP.has(w)).map(w => w.slice(0, 5));
+const nivel = s => { const m = norm(s).match(/\b(i{1,3})\b|cc-?\s?([678])/); if (!m) return null; return m[1] ? m[1].length : ({6:1,7:2,8:3})[m[2]]; };
+const ROM = ['', 'I', 'II', 'III'];
+function unitScore(u, secTxt){
+  const t = toks(secTxt); if (!t.length) return 0;
+  const ut = new Set(toks(u.nome + ' ' + u.nome_lei)); return t.filter(w => ut.has(w)).length / t.length;
+}
+function findCargos(cargoTxt, secTxt){
+  let cands = [];
+  const isAss = /assess/.test(norm(cargoTxt)) && nivel(cargoTxt);
+  D.unidades.forEach(u => u.cargos.forEach(c => {
+    let sc;
+    if (isAss) sc = c.nome === 'Assessoria Nível ' + ROM[nivel(cargoTxt)] ? 1 : 0;
+    else { const t = toks(cargoTxt), ct = new Set(toks(c.nome)); sc = t.length ? t.filter(w => ct.has(w)).length / Math.max(t.length, ct.size) : 0; }
+    if (sc > 0) cands.push({c, u, sc});
+  }));
+  if (secTxt && secTxt.trim()) {
+    cands.forEach(x => x.us = unitScore(x.u, secTxt));
+    const best = Math.max(0, ...cands.map(x => x.us));
+    if (best > 0) cands = cands.filter(x => x.us === best);
+  }
+  const top = Math.max(0, ...cands.map(x => x.sc));
+  if (top < 0.5) return [];
+  return cands.filter(x => x.sc === top).sort((a, b) => b.c.vagas - a.c.vagas);
+}
+function findPessoas(nome, apenasComiss){
+  const n = norm(nome).replace(/\s+/g, ' ').trim();
+  const act = D.pessoas.filter(p => !p.ex && (!apenasComiss || p.v === 'Comissionado'));
+  let r = act.filter(p => norm(p.n) === n);
+  if (!r.length) { const t = n.split(' '); r = act.filter(p => t.every(w => norm(p.n).includes(w))); }
+  return r;
+}
+let PREVIEW = [];
+function parseTxt(text){
+  const out = [];
+  text.split(/\r?\n/).forEach((linha, i) => {
+    if (!linha.trim()) return;
+    const f = linha.split(/[;|\t]/).map(x => x.trim());
+    const si = f.findIndex(x => /^(nomead|nomea|exonera)/i.test(norm(x)));
+    if (si < 0) { if (!/nome/i.test(linha)) out.push({n:i+1, linha, erro:'Não encontrei "nomeado" ou "exonerado" na linha.'}); return; }
+    const sit = /^exonera/.test(norm(f[si])) ? 'Exonerado' : 'Nomeado';
+    const rest = f.filter((_, k) => k !== si);
+    const [nome, cargo = '', sec = ''] = rest;
+    if (!nome) { out.push({n:i+1, linha, erro:'Linha sem nome.'}); return; }
+    const it = {n:i+1, linha, nome, cargo, sec, sit};
+    if (sit === 'Exonerado') {
+      let ps = findPessoas(nome, true);
+      if (ps.length > 1 && cargo) { const f2 = ps.filter(p => (p.cl && findCargos(cargo, sec).some(x => x.c.id === p.cl)) || toks(p.c).some(w => toks(cargo).includes(w))); if (f2.length) ps = f2; }
+      if (!ps.length) it.erro = 'Nenhum comissionado ativo com esse nome.';
+      else it.opts = ps.map(p => ({val:p.m, txt:`${p.n} – ${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} (${U[p.u] ? U[p.u].nome : p.s}) · mat. ${p.m}`}));
+    } else {
+      if (!cargo) { it.erro = 'Informe o cargo para a nomeação.'; }
+      else {
+        const cs = findCargos(cargo, sec);
+        if (!cs.length) it.erro = `Cargo "${cargo}" não encontrado na lei.`;
+        else it.opts = cs.map(x => ({val:x.c.id, txt:`${x.c.nome} – ${x.u.nome} (${x.c.vagas} vaga${x.c.vagas !== 1 ? 's' : ''})`}));
+        const ex = findPessoas(nome, true);
+        it.mover = ex.length === 1 ? ex[0].m : null;
+      }
+    }
+    if (it.opts) it.sel = it.opts[0].val;
+    out.push(it);
+  });
+  return out;
+}
+function renderPreview(){
+  const box = document.getElementById('txt-preview');
+  if (!PREVIEW.length) { box.innerHTML = ''; return; }
+  const ok = PREVIEW.filter(x => !x.erro).length;
+  box.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>Linha</th><th>Nome</th><th>Ação</th><th>Será aplicado em</th></tr></thead>
+    <tbody>${PREVIEW.map((x, k) => `<tr><td class="n">${x.n}</td><td>${esc(x.nome || x.linha)}</td>
+      <td>${x.sit ? `<span class="chip ${x.sit === 'Nomeado' ? 'c-ok' : 'c-exc'}">${x.sit}</span>` : ''}${x.mover ? ' <span class="chip c-prov">remanejamento</span>' : ''}</td>
+      <td>${x.erro ? `<span class="chip c-nao">Não será aplicada</span> <span class="note">${esc(x.erro)}</span>`
+        : x.opts.length === 1 ? esc(x.opts[0].txt)
+        : `<label class="note" for="pv-${k}">${x.opts.length} opções, escolha:</label> <select id="pv-${k}" data-k="${k}">${x.opts.map(o => `<option value="${esc(o.val)}">${esc(o.txt)}</option>`).join('')}</select>`}</td></tr>`).join('')}</tbody></table></div>
+    <div class="toolbar"><button type="button" class="btn primary" id="txt-apply" ${ok ? '' : 'disabled'}>Aplicar ${ok} alteraç${ok === 1 ? 'ão' : 'ões'}</button>
+    <button type="button" class="btn" id="txt-cancel">Cancelar</button></div>`;
+  box.querySelectorAll('select[data-k]').forEach(s => s.addEventListener('change', () => { PREVIEW[+s.dataset.k].sel = s.value; }));
+  document.getElementById('txt-apply').addEventListener('click', applyPreview);
+  document.getElementById('txt-cancel').addEventListener('click', () => { PREVIEW = []; renderPreview(); document.getElementById('txt-file').value = ''; });
+}
+async function applyPreview(){
+  const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR'), hist = D.historico = D.historico || [];
+  let n = 0;
+  PREVIEW.filter(x => !x.erro).forEach(x => {
+    if (x.sit === 'Exonerado') {
+      const p = P[x.sel]; p.ex = dt; p.obs = `Exonerado em ${dt} (atualização por TXT).`;
+      hist.unshift({d:hoje.toISOString(), u:LOGIN, a:'Exoneração', n:p.n, det:`${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} – ${U[p.u] ? U[p.u].nome : p.s}`});
+    } else {
+      const c = C[x.sel], u = D.unidades.find(un => un.cargos.includes(c));
+      let p = x.mover ? P[x.mover] : null, acao = 'Nomeação';
+      if (p) { acao = 'Remanejamento'; p.obs = `Remanejado em ${dt}; antes: ${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} (${U[p.u] ? U[p.u].nome : p.s}).`; }
+      else { p = {f:'Atualização', m:'N' + Date.now().toString(36).toUpperCase() + n, n:x.nome.toUpperCase(), adm:dt, v:'Comissionado'}; D.pessoas.push(p); p.obs = `Nomeado em ${dt} (atualização por TXT).`; }
+      Object.assign(p, {c:c.nome.toUpperCase(), l:'Atualização por TXT', s:u.nome, u:u.id, cl:c.id, st:'exata'});
+      hist.unshift({d:hoje.toISOString(), u:LOGIN, a:acao, n:p.n, det:`${c.nome} – ${u.nome}`});
+    }
+    n++;
+  });
+  D.pessoas.sort((a, b) => a.n.localeCompare(b.n, 'pt-BR'));
+  D.atualizado = hoje.toISOString(); D._rascunho = true;
+  const blob = await encryptData(); lsSet(DRAFT_KEY, JSON.stringify(blob));
+  PREVIEW = []; document.getElementById('txt-file').value = '';
+  refreshAll();
+  document.getElementById('txt-preview').innerHTML = `<div class="callout">${n} alteraç${n === 1 ? 'ão aplicada' : 'ões aplicadas'}. Para valer para todos, baixe o <b>dados.enc</b> e substitua o arquivo no GitHub.</div>`;
+}
+
+/* ================= Painel de ferramentas ================= */
+function renderTools(){
+  const st = document.getElementById('save-state');
+  st.innerHTML = D._rascunho
+    ? `<div class="callout">Há alterações feitas neste navegador que ainda não estão no GitHub (${new Date(D.atualizado).toLocaleString('pt-BR')}).
+       <div class="toolbar" style="margin-top:8px"><button type="button" class="btn primary" id="dl-dados">Baixar dados.enc</button><button type="button" class="btn" id="discard">Descartar alterações deste navegador</button></div></div>`
+    : `<div class="note">Dados em dia com o arquivo publicado${D.atualizado ? ' (última atualização ' + new Date(D.atualizado).toLocaleString('pt-BR') + ')' : ''}.</div>`;
+  const dl = document.getElementById('dl-dados');
+  if (dl) dl.addEventListener('click', async () => download('dados.enc', JSON.stringify(await encryptData())));
+  const ds = document.getElementById('discard');
+  if (ds) ds.addEventListener('click', async () => { lsSet(DRAFT_KEY, null); const r = await fetch('dados.enc', {cache:'no-store'}); D = await decryptData(await r.json()); refreshAll(); });
+  document.getElementById('user-list').innerHTML = USERS.usuarios.map(u => `<span class="chip c-v">${esc(u.login)}${u.login === LOGIN ? ' (você)' : ''}</span>
+    ${u.login !== LOGIN ? `<button type="button" class="btn small" data-rm="${esc(u.login)}">remover</button>` : ''}`).join(' ');
+  document.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
+    USERS.usuarios = USERS.usuarios.filter(u => u.login !== b.dataset.rm); renderTools();
+    document.getElementById('user-msg').innerHTML = `Usuário removido. <a href="#" id="dl-users2">Baixe o usuarios.json</a> e substitua no GitHub.`;
+    document.getElementById('dl-users2').addEventListener('click', e => { e.preventDefault(); download('usuarios.json', JSON.stringify(USERS, null, 1)); });
+  }));
+}
+async function saveUser(e){
+  e.preventDefault();
+  const login = document.getElementById('nu-login').value.trim().toLowerCase(), s1 = document.getElementById('nu-senha').value, s2 = document.getElementById('nu-senha2').value;
+  const msg = document.getElementById('user-msg');
+  if (!/^[a-z0-9._-]{3,}$/.test(login)) { msg.textContent = 'O login precisa ter ao menos 3 caracteres: letras, números, ponto, hífen ou sublinhado.'; return; }
+  if (s1.length < 8) { msg.textContent = 'A senha precisa ter ao menos 8 caracteres.'; return; }
+  if (s1 !== s2) { msg.textContent = 'As senhas não conferem.'; return; }
+  const novo = await wrapKey(login, s1), i = USERS.usuarios.findIndex(u => u.login === login);
+  if (i >= 0) USERS.usuarios[i] = novo; else USERS.usuarios.push(novo);
+  e.target.reset(); renderTools();
+  msg.innerHTML = `${i >= 0 ? 'Senha de' : 'Usuário'} <b>${esc(login)}</b> ${i >= 0 ? 'trocada' : 'criado'}. <a href="#" id="dl-users">Baixe o usuarios.json</a> e substitua no GitHub para valer.`;
+  document.getElementById('dl-users').addEventListener('click', ev => { ev.preventDefault(); download('usuarios.json', JSON.stringify(USERS, null, 1)); });
+}
+document.getElementById('login-form').addEventListener('submit', doLogin);
+document.getElementById('logout').addEventListener('click', logout);
+document.getElementById('user-form').addEventListener('submit', saveUser);
+document.getElementById('txt-file').addEventListener('change', async ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  let t = await f.text(); if (t.includes('�')) t = new TextDecoder('windows-1252').decode(await f.arrayBuffer());
+  PREVIEW = parseTxt(t); renderPreview();
+});
+
+</script>
+</body>
+</html>
