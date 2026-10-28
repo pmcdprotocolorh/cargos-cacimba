@@ -167,9 +167,6 @@ details.users summary{cursor:pointer;font-weight:600}
   <section class="card" style="display:grid;gap:14px" aria-labelledby="h-tools">
     <h2 id="h-tools">Atualizar por arquivo TXT</h2>
     <p class="note" style="margin:0">Uma linha por servidor, com os campos separados por ponto e vírgula: <code>NOME; CARGO; NOMEADO ou EXONERADO; SECRETARIA</code>. A secretaria é opcional, mas evita dúvida em cargos que existem em várias secretarias (ex.: Assessor Nível I). Antes de aplicar, a página mostra o que vai mudar.</p>
-    <pre class="ex">MARIA DA SILVA SOUZA; Coordenador de Laboratório; NOMEADO; Hospital
-JOSE PEREIRA LIMA; Assessor Nível II; EXONERADO; Finanças
-ANA LUCIA COSTA; Assessor Nível I; NOMEADO; Educação</pre>
     <div><label for="txt-file" class="btn primary">Escolher arquivo TXT</label><input id="txt-file" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
     <div id="txt-preview" style="display:grid;gap:10px"></div>
     <div id="save-state"></div>
