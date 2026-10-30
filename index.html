@@ -136,6 +136,10 @@ select{width:auto;max-width:100%}
 .userbar{display:flex;justify-content:flex-end;align-items:center;gap:10px}
 .vh{position:absolute;width:1px;height:1px;opacity:0}
 pre.ex{margin:0;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;font-size:13px;overflow-x:auto}
+.txtopts{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.txtopt{display:grid;gap:8px;align-content:start;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.txtopt pre.ex{background:var(--surface)}
+.mv{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
 details.users summary{cursor:pointer;font-weight:600}
 @media (max-width:640px){ h1{font-size:23px} .tile .v{font-size:24px} .hide-sm{display:none} }
 @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
@@ -168,9 +172,23 @@ details.users summary{cursor:pointer;font-weight:600}
 
   <section class="card" style="display:grid;gap:14px" aria-labelledby="h-tools">
     <h2 id="h-tools">Atualizar por arquivo TXT</h2>
-    <p class="note" style="margin:0">Uma linha por servidor, com os campos separados por ponto e vírgula: <code>NOME; CARGO; NOMEADO ou EXONERADO; SECRETARIA</code>. A secretaria é opcional, mas evita dúvida em cargos que existem em várias secretarias (ex.: Assessor Nível I). Antes de aplicar, a página mostra o que vai mudar.</p>
-    
-    <div><label for="txt-file" class="btn primary">Escolher arquivo TXT</label><input id="txt-file" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
+    <p class="note" style="margin:0">Uma linha por servidor, com os campos separados por ponto e vírgula. A secretaria é opcional, mas evita dúvida em cargos que existem em várias secretarias (ex.: Assessor Nível I). Antes de aplicar, a página mostra o que vai mudar.</p>
+    <div class="txtopts">
+      <div class="txtopt">
+        <h3>Nomeações e exonerações</h3>
+        <p class="note" style="margin:0"><code>NOME; CARGO; NOMEADO ou EXONERADO; SECRETARIA</code></p>
+        <pre class="ex">MARIA DA SILVA SOUZA; Coordenador de Laboratório; NOMEADO; Hospital
+JOSE PEREIRA LIMA; Assessor Nível II; EXONERADO; Finanças</pre>
+        <div><label for="txt-file" class="btn primary">Escolher TXT de nomeações e exonerações</label><input id="txt-file" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
+      </div>
+      <div class="txtopt">
+        <h3>Remanejamento entre secretarias</h3>
+        <p class="note" style="margin:0"><code>NOME; CARGO DE DESTINO; SECRETARIA DE DESTINO</code><br>Só para quem já é comissionado. O servidor sai do cargo atual e passa para o cargo informado.</p>
+        <pre class="ex">AMANDA DA SILVA VALVERDE; Assessor Nível II; Transportes
+DAYANE SANTOS DO NASCIMENTO; Coordenação de Contabilidade; Finanças</pre>
+        <div><label for="txt-reman" class="btn primary">Escolher TXT de remanejamento</label><input id="txt-reman" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
+      </div>
+    </div>
     <div id="txt-preview" style="display:grid;gap:10px"></div>
     <div id="save-state"></div>
     <details class="users"><summary>Usuários e senhas</summary>
@@ -669,23 +687,40 @@ function findPessoas(nome, apenasComiss){
   return r;
 }
 let PREVIEW = [];
-function parseTxt(text){
+const pessoaDesc = p => `${p.n} – ${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} (${U[p.u] ? U[p.u].nome : p.s}) · mat. ${p.m}`;
+function parseTxt(text, modo){
   const out = [];
   text.split(/\r?\n/).forEach((linha, i) => {
     if (!linha.trim()) return;
     const f = linha.split(/[;|\t]/).map(x => x.trim());
-    const si = f.findIndex(x => /^(nomead|nomea|exonera)/i.test(norm(x)));
-    if (si < 0) { if (!/nome/i.test(linha)) out.push({n:i+1, linha, erro:'Não encontrei "nomeado" ou "exonerado" na linha.'}); return; }
-    const sit = /^exonera/.test(norm(f[si])) ? 'Exonerado' : 'Nomeado';
-    const rest = f.filter((_, k) => k !== si);
+    const si = f.findIndex(x => /^(nomead|nomea|exonera|reman|transfer)/i.test(norm(x)));
+    if (si < 0 && /^nome\b/i.test(norm(f[0]))) return;   // cabeçalho
+    if (si < 0 && modo !== 'reman') { out.push({n:i+1, linha, erro:'Não encontrei "nomeado", "exonerado" ou "remanejado" na linha.'}); return; }
+    const sv = si < 0 ? 'reman' : norm(f[si]);
+    const sit = /^exonera/.test(sv) ? 'Exonerado' : /^(reman|transfer)/.test(sv) ? 'Remanejado' : 'Nomeado';
+    const rest = si < 0 ? f : f.filter((_, k) => k !== si);
     const [nome, cargo = '', sec = ''] = rest;
     if (!nome) { out.push({n:i+1, linha, erro:'Linha sem nome.'}); return; }
     const it = {n:i+1, linha, nome, cargo, sec, sit};
-    if (sit === 'Exonerado') {
+    if (sit === 'Remanejado') {
+      const ps = findPessoas(nome, true);
+      if (!ps.length) it.erro = 'Nenhum comissionado ativo com esse nome. Para alguém que ainda não é comissionado, use NOMEADO.';
+      else if (!cargo) it.erro = 'Informe o cargo de destino.';
+      else {
+        it.popts = ps.map(p => ({val:p.m, txt:pessoaDesc(p)})); it.psel = it.popts[0].val;
+        const cs = findCargos(cargo, sec);
+        if (!cs.length) it.erro = `Cargo de destino "${cargo}" não encontrado na lei.`;
+        else {
+          it.opts = cs.map(x => ({val:x.c.id, txt:`${x.c.nome} – ${x.u.nome} (${x.c.vagas} vaga${x.c.vagas !== 1 ? 's' : ''})`}));
+          const pp = P[it.psel];
+          if (ps.length === 1 && cs.length === 1 && pp.st !== 'nao' && pp.cl === cs[0].c.id) it.erro = 'O servidor já ocupa esse cargo.';
+        }
+      }
+    } else if (sit === 'Exonerado') {
       let ps = findPessoas(nome, true);
       if (ps.length > 1 && cargo) { const f2 = ps.filter(p => (p.cl && findCargos(cargo, sec).some(x => x.c.id === p.cl)) || toks(p.c).some(w => toks(cargo).includes(w))); if (f2.length) ps = f2; }
       if (!ps.length) it.erro = 'Nenhum comissionado ativo com esse nome.';
-      else it.opts = ps.map(p => ({val:p.m, txt:`${p.n} – ${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} (${U[p.u] ? U[p.u].nome : p.s}) · mat. ${p.m}`}));
+      else it.opts = ps.map(p => ({val:p.m, txt:pessoaDesc(p)}));
     } else {
       if (!cargo) { it.erro = 'Informe o cargo para a nomeação.'; }
       else {
@@ -701,6 +736,10 @@ function parseTxt(text){
   });
   return out;
 }
+function pick(opts, k, f, label){
+  if (opts.length === 1) return esc(opts[0].txt);
+  return `<label class="note" for="pv-${k}-${f}">${label} (${opts.length} opções):</label> <select id="pv-${k}-${f}" data-k="${k}" data-f="${f}">${opts.map(o => `<option value="${esc(o.val)}">${esc(o.txt)}</option>`).join('')}</select>`;
+}
 function renderPreview(){
   const box = document.getElementById('txt-preview');
   if (!PREVIEW.length) { box.innerHTML = ''; return; }
@@ -708,15 +747,15 @@ function renderPreview(){
   box.innerHTML = `<div class="tbl-wrap"><table>
     <thead><tr><th>Linha</th><th>Nome</th><th>Ação</th><th>Será aplicado em</th></tr></thead>
     <tbody>${PREVIEW.map((x, k) => `<tr><td class="n">${x.n}</td><td>${esc(x.nome || x.linha)}</td>
-      <td>${x.sit ? `<span class="chip ${x.sit === 'Nomeado' ? 'c-ok' : 'c-exc'}">${x.sit}</span>` : ''}${x.mover ? ' <span class="chip c-prov">remanejamento</span>' : ''}</td>
+      <td>${x.sit ? `<span class="chip ${x.sit === 'Nomeado' ? 'c-ok' : x.sit === 'Remanejado' ? 'c-prov' : 'c-exc'}">${x.sit}</span>` : ''}${x.mover ? ' <span class="chip c-prov">remanejamento</span>' : ''}</td>
       <td>${x.erro ? `<span class="chip c-nao">Não será aplicada</span> <span class="note">${esc(x.erro)}</span>`
-        : x.opts.length === 1 ? esc(x.opts[0].txt)
-        : `<label class="note" for="pv-${k}">${x.opts.length} opções, escolha:</label> <select id="pv-${k}" data-k="${k}">${x.opts.map(o => `<option value="${esc(o.val)}">${esc(o.txt)}</option>`).join('')}</select>`}</td></tr>`).join('')}</tbody></table></div>
+        : x.sit === 'Remanejado' ? `<div class="mv"><span class="note">De:</span> ${pick(x.popts, k, 'psel', 'Mais de um servidor com esse nome, escolha')}</div><div class="mv"><span class="note">Para:</span> ${pick(x.opts, k, 'sel', 'Escolha o cargo de destino')}</div>`
+        : pick(x.opts, k, 'sel', 'Escolha')}</td></tr>`).join('')}</tbody></table></div>
     <div class="toolbar"><button type="button" class="btn primary" id="txt-apply" ${ok ? '' : 'disabled'}>Aplicar ${ok} alteraç${ok === 1 ? 'ão' : 'ões'}</button>
     <button type="button" class="btn" id="txt-cancel">Cancelar</button></div>`;
-  box.querySelectorAll('select[data-k]').forEach(s => s.addEventListener('change', () => { PREVIEW[+s.dataset.k].sel = s.value; }));
+  box.querySelectorAll('select[data-k]').forEach(s => s.addEventListener('change', () => { PREVIEW[+s.dataset.k][s.dataset.f] = s.value; }));
   document.getElementById('txt-apply').addEventListener('click', applyPreview);
-  document.getElementById('txt-cancel').addEventListener('click', () => { PREVIEW = []; renderPreview(); document.getElementById('txt-file').value = ''; });
+  document.getElementById('txt-cancel').addEventListener('click', () => { PREVIEW = []; renderPreview(); document.getElementById('txt-file').value = ''; document.getElementById('txt-reman').value = ''; });
 }
 async function applyPreview(){
   const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR'), hist = D.historico = D.historico || [];
@@ -727,7 +766,9 @@ async function applyPreview(){
       hist.unshift({d:hoje.toISOString(), u:LOGIN, a:'Exoneração', n:p.n, det:`${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} – ${U[p.u] ? U[p.u].nome : p.s}`});
     } else {
       const c = C[x.sel], u = D.unidades.find(un => un.cargos.includes(c));
-      let p = x.mover ? P[x.mover] : null, acao = 'Nomeação';
+      const mv = x.sit === 'Remanejado' ? x.psel : x.mover;
+      if (mv && P[mv].cl === c.id && P[mv].st !== 'nao') return;   // já está nesse cargo
+      let p = mv ? P[mv] : null, acao = 'Nomeação';
       if (p) { acao = 'Remanejamento'; p.obs = `Remanejado em ${dt}; antes: ${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} (${U[p.u] ? U[p.u].nome : p.s}).`; }
       else { p = {f:'Atualização', m:'N' + Date.now().toString(36).toUpperCase() + n, n:x.nome.toUpperCase(), adm:dt, v:'Comissionado'}; D.pessoas.push(p); p.obs = `Nomeado em ${dt} (atualização por TXT).`; }
       Object.assign(p, {c:c.nome.toUpperCase(), l:'Atualização por TXT', s:u.nome, u:u.id, cl:c.id, st:'exata'});
@@ -738,7 +779,7 @@ async function applyPreview(){
   D.pessoas.sort((a, b) => a.n.localeCompare(b.n, 'pt-BR'));
   D.atualizado = hoje.toISOString(); D._rascunho = true;
   const blob = await encryptData(); lsSet(DRAFT_KEY, JSON.stringify(blob));
-  PREVIEW = []; document.getElementById('txt-file').value = '';
+  PREVIEW = []; document.getElementById('txt-file').value = ''; document.getElementById('txt-reman').value = '';
   refreshAll();
   document.getElementById('txt-preview').innerHTML = `<div class="callout">${n} alteraç${n === 1 ? 'ão aplicada' : 'ões aplicadas'}. Para valer para todos, baixe o <b>dados.enc</b> e substitua o arquivo no GitHub.</div>`;
 }
@@ -778,10 +819,14 @@ async function saveUser(e){
 document.getElementById('login-form').addEventListener('submit', doLogin);
 document.getElementById('logout').addEventListener('click', logout);
 document.getElementById('user-form').addEventListener('submit', saveUser);
+async function readTxt(file){ let t = await file.text(); if (t.includes('�')) t = new TextDecoder('windows-1252').decode(await file.arrayBuffer()); return t; }
 document.getElementById('txt-file').addEventListener('change', async ev => {
   const f = ev.target.files[0]; if (!f) return;
-  let t = await f.text(); if (t.includes('�')) t = new TextDecoder('windows-1252').decode(await f.arrayBuffer());
-  PREVIEW = parseTxt(t); renderPreview();
+  PREVIEW = parseTxt(await readTxt(f)); renderPreview();
+});
+document.getElementById('txt-reman').addEventListener('change', async ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  PREVIEW = parseTxt(await readTxt(f), 'reman'); renderPreview();
 });
 
 </script>
