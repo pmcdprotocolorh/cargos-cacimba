@@ -140,6 +140,9 @@ pre.ex{margin:0;padding:10px 12px;background:var(--bg);border:1px solid var(--li
 .txtopt{display:grid;gap:8px;align-content:start;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
 .txtopt pre.ex{background:var(--surface)}
 .mv{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
+.codes{max-height:420px;overflow:auto}
+.codes tr.ugrp td{background:var(--bg);padding-top:12px}
+code{font-size:12.5px}
 details.users summary{cursor:pointer;font-weight:600}
 @media (max-width:640px){ h1{font-size:23px} .tile .v{font-size:24px} .hide-sm{display:none} }
 @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
@@ -188,7 +191,22 @@ details.users summary{cursor:pointer;font-weight:600}
 0065448; Coordenação de Contabilidade; Finanças</pre>
         <div><label for="txt-reman" class="btn primary">Escolher TXT de remanejamento</label><input id="txt-reman" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
       </div>
+      <div class="txtopt">
+        <h3>Cargos, secretarias e valores</h3>
+        <p class="note" style="margin:0"><code>CÓDIGO; CAMPO; NOVO VALOR</code><br>Campos: <b>NOME</b>, <b>SECRETARIA</b> (muda o cargo de secretaria), <b>VALOR</b> e <b>QUANTIDADE</b>. Use o código do cargo (ex.: FIN-2), o da secretaria (ex.: FIN, só para NOME) ou um símbolo (ex.: CC-4, só para VALOR, muda todos os cargos desse símbolo).</p>
+        <pre class="ex">FIN-2; NOME; Diretoria de Receitas e Tributos
+FIN-3; SECRETARIA; TRANSP
+CC-4; VALOR; 2.700,00
+HOSP-1; VALOR; 2.800,00
+FIN; NOME; Secretaria Municipal da Fazenda</pre>
+        <div><label for="txt-alt" class="btn primary">Escolher TXT de alterações</label><input id="txt-alt" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
+      </div>
     </div>
+    <details class="users"><summary>Códigos de secretarias e cargos</summary>
+      <div style="display:grid;gap:8px;padding-top:10px">
+        <input id="codes-q" type="search" placeholder="Filtrar por nome, código ou símbolo" autocomplete="off" aria-label="Filtrar códigos">
+        <div id="codes" class="tbl-wrap codes"></div>
+      </div></details>
     <div id="txt-preview" style="display:grid;gap:10px"></div>
     <div id="save-state"></div>
     <details class="users"><summary>Usuários e senhas</summary>
@@ -235,7 +253,7 @@ function personCard(p){
   if (p.v === 'Comissionado'){
     const u = U[p.u];
     if (p.st === 'nao') lei = `<div><b>Na lei:</b> sem correspondência em ${esc(u.nome)}</div>`;
-    else lei = `<div><b>Na lei:</b> ${esc(C[p.cl].nome)} (${esc(simbLabel(C[p.cl]))}) – <a href="#sec-${u.id}">${esc(u.nome)}</a></div><div><b>Vencimento do cargo:</b> ${brl(C[p.cl].valor)}${SAL_NOTA[C[p.cl].simbolo] ? ` <span class="mut">(${esc(SAL_NOTA[C[p.cl].simbolo])})</span>` : ''}</div>`;
+    else lei = `<div><b>Na lei:</b> ${esc(C[p.cl].nome)} (${esc(simbLabel(C[p.cl]))}) – <a href="#sec-${u.id}">${esc(u.nome)}</a></div><div><b>Vencimento do cargo:</b> ${brl(C[p.cl].valor)}${notaValor(C[p.cl]) ? ` <span class="mut">(${esc(notaValor(C[p.cl]))})</span>` : ''}</div>`;
   }
   const chip = p.v === 'Comissionado' ? ` <span class="chip ${STCLS[p.st]}">${STLABEL[p.st]}</span>` : '';
   return `<div class="res">
@@ -485,17 +503,17 @@ function detail(id){
     const occ = c.oc.length ? c.oc.map(m => { const p = P[m];
         return `<div class="o"><span>${esc(p.n)}</span><span class="mut">· ${esc(p.c)}</span>${p.st==='provavel'?' <span class="chip c-prov">provável</span>':''}</div>`; }).join('')
       : '<span class="mut">ninguém</span>';
-    return `<tr><td><div>${esc(c.nome)}</div>${c.nota?`<div class="note">${esc(c.nota)}</div>`:''}</td>
-      <td>${esc(simbLabel(c))}</td><td class="n">${brl(c.valor)}${SAL_NOTA[c.simbolo] ? ` <span class="info" title="${esc(SAL_NOTA[c.simbolo])}">*</span>` : ''}</td><td class="n">${c.qtd}</td><td class="n">${c.oc.length}</td>
+    return `<tr><td><code>${code(c)}</code></td><td><div>${esc(c.nome)}</div>${c.nota?`<div class="note">${esc(c.nota)}</div>`:''}</td>
+      <td>${esc(simbLabel(c))}</td><td class="n">${brl(c.valor)}${notaValor(c) ? ` <span class="info" title="${esc(notaValor(c))}">*</span>` : ''}</td><td class="n">${c.qtd}</td><td class="n">${c.oc.length}</td>
       <td><span class="chip ${cls}">${lab}</span></td><td><div class="occ">${occ}</div></td></tr>`;
-  }).join('') || `<tr><td colspan="7" class="note">Nenhum cargo neste filtro.</td></tr>`;
+  }).join('') || `<tr><td colspan="8" class="note">Nenhum cargo neste filtro.</td></tr>`;
   const ne = u.ne.map(m => { const p = P[m];
     return `<div class="it"><div><b>${esc(p.n)}</b> · ${esc(p.c)}</div><div class="note">${esc(p.obs || '')} Matrícula ${esc(p.m)}.</div></div>`; }).join('');
   const faltam = u.cargos.filter(c => c.oc.length < c.qtd);
   const saude = '';
   main.innerHTML = `<div class="detail">
     <button class="back" id="back" type="button">← Voltar para todas as secretarias</button>
-    <div style="display:grid;gap:4px"><h2>${esc(u.nome)}</h2><div class="sub">Na lei: ${esc(u.nome_lei)}</div></div>
+    <div style="display:grid;gap:4px"><h2>${esc(u.nome)}</h2><div class="sub">Código: <code>${code(u)}</code> · Na lei: ${esc(u.nome_lei)}</div></div>
     ${saude}
     <div class="tiles">
       <div class="tile"><span class="k">Previstos</span><span class="v">${u.previstos}</span></div>
@@ -512,7 +530,7 @@ function detail(id){
           <button type="button" data-f="exc" aria-pressed="${filtro==='exc'}">Excedidos</button>
         </div></div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Cargo</th><th>Símbolo</th><th class="n">Vencimento</th><th class="n">Qtd. lei</th><th class="n">Na folha</th><th>Situação</th><th>Ocupantes (cargo na folha)</th></tr></thead>
+        <thead><tr><th>Código</th><th>Cargo</th><th>Símbolo</th><th class="n">Vencimento</th><th class="n">Qtd. lei</th><th class="n">Na folha</th><th>Situação</th><th>Ocupantes (cargo na folha)</th></tr></thead>
         <tbody>${rows}</tbody></table></div>
     </section>
     ${u.ne.length ? `<section class="card" style="display:grid;gap:12px"><h3>Comissionados sem correspondência na lei (${u.ne.length})</h3>
@@ -539,10 +557,19 @@ const SAL_NOTA = {
   DE:'Vencimento da Lei 220/2026 (Anexo I, nota **).', DEA:'Vencimento da Lei 220/2026 (Anexo I, nota **).',
   'CC-8':'Salário mínimo vigente.', 'CC-9':'Salário mínimo vigente.'};
 const brl = n => (n || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+const resolveV = v => v === 'SM' ? SALARIO_MINIMO : v;
 function valorCargo(c){
+  if (c.v != null) return resolveV(c.v);
+  if (D && D.valores && D.valores[c.simbolo] != null) return resolveV(D.valores[c.simbolo]);
   if (/^R\$/.test(c.simbolo)) return parseFloat(c.simbolo.replace(/[R$\s.]/g, '').replace(',', '.'));
   return SAL[c.simbolo] || 0;
 }
+function notaValor(c){
+  if (c.v != null) return `Valor deste cargo alterado por TXT em ${c.vd || ''}.`;
+  if (D.valores && D.valores[c.simbolo] != null) return `Valor do símbolo ${c.simbolo} alterado por TXT em ${(D.valoresData || {})[c.simbolo] || ''}.`;
+  return SAL_NOTA[c.simbolo] || '';
+}
+const code = x => x.id.toUpperCase();
 const simbLabel = c => /^R\$/.test(c.simbolo) ? 'Lei 147' : c.simbolo;
 
 /* ================= Dados, criptografia e login ================= */
@@ -574,9 +601,9 @@ async function decryptData(obj){
   return JSON.parse(dec.decode(pt));
 }
 function serializable(){
-  return {fonte:D.fonte, atualizado:D.atualizado, historico:D.historico || [],
+  return {fonte:D.fonte, atualizado:D.atualizado, historico:D.historico || [], valores:D.valores || {}, valoresData:D.valoresData || {},
     unidades:D.unidades.map(u => ({id:u.id, nome:u.nome, nome_lei:u.nome_lei, grupo:u.grupo,
-      cargos:u.cargos.map(c => { const o = {id:c.id, nome:c.nome, simbolo:c.simbolo, qtd:c.qtd}; if (c.nota) o.nota = c.nota; return o; })})),
+      cargos:u.cargos.map(c => { const o = {id:c.id, nome:c.nome, simbolo:c.simbolo, qtd:c.qtd}; if (c.nota) o.nota = c.nota; if (c.v != null) { o.v = c.v; o.vd = c.vd; } return o; })})),
     pessoas:D.pessoas};
 }
 async function encryptData(){
@@ -770,6 +797,81 @@ function parseTxt(text, modo){
   });
   return out;
 }
+/* ---------- Alterações de cargos, secretarias e valores ---------- */
+const SIMBOLOS = Object.keys(SAL);
+function parseValor(t){
+  if (/minimo/.test(norm(t))) return 'SM';
+  let v = t.replace(/R\$|\s/gi, '');
+  if (v.includes(',')) v = v.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(v); return isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
+}
+const fmtV = v => v === 'SM' ? `salário mínimo (${brl(SALARIO_MINIMO)})` : brl(v);
+function findUnit(t){
+  const id = norm(t).trim();
+  if (U[id]) return [U[id]];
+  const sc = D.unidades.map(u => ({u, s:unitScore(u, t)})), best = Math.max(0, ...sc.map(x => x.s));
+  return best >= 0.5 ? sc.filter(x => x.s === best).map(x => x.u) : [];
+}
+const unitOf = c => D.unidades.find(u => u.cargos.includes(c));
+function parseAlt(text){
+  const out = [];
+  text.split(/\r?\n/).forEach((linha, i) => {
+    if (!linha.trim()) return;
+    const f = linha.split(/[;|\t]/).map(x => x.trim()).filter(x => x !== '');
+    if (/^(codigo|cod\b)/.test(norm(f[0] || ''))) return;   // cabeçalho
+    const it = {n:i+1, linha, alt:true, nome:f[0] || ''};
+    out.push(it);
+    if (f.length < 3) { it.erro = 'Use: CÓDIGO; CAMPO; NOVO VALOR.'; return; }
+    const cod = f[0], campoT = norm(f[1]), novo = f.slice(2).join('; ');
+    const campo = /^(nome|denomina)/.test(campoT) ? 'nome' : /^(secret|lota|orgao)/.test(campoT) ? 'sec' : /^(valor|venc|salar|subsid)/.test(campoT) ? 'valor' : /^(quant|qtd)/.test(campoT) ? 'qtd' : null;
+    if (!campo) { it.erro = `Campo "${f[1]}" não reconhecido. Use NOME, SECRETARIA, VALOR ou QUANTIDADE.`; return; }
+    it.campo = campo;
+    const sym = SIMBOLOS.find(x => x.toLowerCase() === cod.toLowerCase());
+    const c = C[cod.toLowerCase()], u = U[cod.toLowerCase()];
+    if (campo === 'valor' && sym && !c) {
+      const v = parseValor(novo); if (v == null) { it.erro = `Valor "${novo}" inválido.`; return; }
+      const n = D.unidades.reduce((a, un) => a + un.cargos.filter(x => x.simbolo === sym && x.v == null).length, 0);
+      Object.assign(it, {tipo:'sym', alvo:sym, nome:`Símbolo ${sym}`, novo:v, desc:`Valor de todos os cargos ${sym} (${n}): ${brl((D.valores||{})[sym] != null ? resolveV(D.valores[sym]) : SAL[sym])} → ${fmtV(v)}`});
+      return;
+    }
+    if (c) {
+      const uc = unitOf(c); it.nome = c.nome; Object.assign(it, {tipo:'cargo', alvo:c.id});
+      if (campo === 'nome') { it.novo = novo; it.desc = `Nome: ${c.nome} → ${novo}`; }
+      else if (campo === 'valor') { const v = parseValor(novo); if (v == null) { it.erro = `Valor "${novo}" inválido.`; return; } it.novo = v; it.desc = `Valor: ${brl(c.valor)} → ${fmtV(v)}`; }
+      else if (campo === 'qtd') { const q = parseInt(novo, 10); if (!(q >= 0)) { it.erro = `Quantidade "${novo}" inválida.`; return; } it.novo = q; it.desc = `Quantidade: ${c.qtd} → ${q}`; }
+      else {
+        const us = findUnit(novo);
+        if (!us.length) { it.erro = `Secretaria "${novo}" não encontrada. Use o código da secretaria (ex.: FIN).`; return; }
+        if (us.length > 1) { it.erro = `"${novo}" corresponde a mais de uma secretaria: ${us.map(x => code(x)).join(', ')}. Use o código.`; return; }
+        if (us[0] === uc) { it.erro = 'O cargo já está nessa secretaria.'; return; }
+        it.novo = us[0].id; it.desc = `Secretaria: ${uc.nome} → ${us[0].nome}${c.oc.length ? ` (${c.oc.length > 1 ? `os ${c.oc.length} ocupantes vão` : 'o ocupante vai'} junto)` : ''}`;
+      }
+      if (campo === 'nome' && norm(novo) === norm(c.nome)) it.erro = 'O nome novo é igual ao atual.';
+      return;
+    }
+    if (u) {
+      it.nome = u.nome; Object.assign(it, {tipo:'unid', alvo:u.id});
+      if (campo !== 'nome') { it.erro = campo === 'valor' ? 'Valor se altera por cargo ou por símbolo (ex.: CC-4), não por secretaria.' : 'Para secretarias, só é possível alterar o NOME.'; return; }
+      it.novo = novo; it.desc = `Nome da secretaria: ${u.nome} → ${novo}`; return;
+    }
+    it.erro = `Código "${cod}" não encontrado. Veja os códigos na lista abaixo ou na página de cada secretaria.`;
+  });
+  return out;
+}
+function applyAlt(x, dt, hoje, hist){
+  let det = x.desc;
+  if (x.tipo === 'sym') { D.valores = D.valores || {}; D.valoresData = D.valoresData || {}; D.valores[x.alvo] = x.novo; D.valoresData[x.alvo] = dt; }
+  else if (x.tipo === 'unid') { U[x.alvo].nome = x.novo; }
+  else {
+    const c = C[x.alvo];
+    if (x.campo === 'nome') c.nome = x.novo;
+    else if (x.campo === 'valor') { c.v = x.novo; c.vd = dt; }
+    else if (x.campo === 'qtd') c.qtd = x.novo;
+    else { const de = unitOf(c), para = U[x.novo]; de.cargos.splice(de.cargos.indexOf(c), 1); para.cargos.push(c); D.pessoas.forEach(p => { if (p.cl === c.id) p.u = para.id; }); }
+  }
+  hist.unshift({d:hoje.toISOString(), u:LOGIN, a:'Alteração', n:x.nome, det});
+}
+
 function pick(opts, k, f, label){
   if (opts.length === 1) return esc(opts[0].txt);
   return `<label class="note" for="pv-${k}-${f}">${label} (${opts.length} opções):</label> <select id="pv-${k}-${f}" data-k="${k}" data-f="${f}">${opts.map(o => `<option value="${esc(o.val)}">${esc(o.txt)}</option>`).join('')}</select>`;
@@ -779,22 +881,24 @@ function renderPreview(){
   if (!PREVIEW.length) { box.innerHTML = ''; return; }
   const ok = PREVIEW.filter(x => !x.erro).length;
   box.innerHTML = `<div class="tbl-wrap"><table>
-    <thead><tr><th>Linha</th><th>Nome</th><th>Ação</th><th>Será aplicado em</th></tr></thead>
+    <thead><tr><th>Linha</th><th>Servidor ou cargo</th><th>Ação</th><th>O que muda</th></tr></thead>
     <tbody>${PREVIEW.map((x, k) => `<tr><td class="n">${x.n}</td><td>${esc(x.nome || x.linha)}${x.mat ? `<div class="note">mat. ${esc(x.mat)}</div>` : ''}</td>
-      <td>${x.sit ? `<span class="chip ${x.sit === 'Nomeado' ? 'c-ok' : x.sit === 'Remanejado' ? 'c-prov' : 'c-exc'}">${x.sit}</span>` : ''}${x.mover ? ' <span class="chip c-prov">remanejamento</span>' : ''}</td>
+      <td>${x.alt ? `<span class="chip c-v">Alteração</span>` : x.sit ? `<span class="chip ${x.sit === 'Nomeado' ? 'c-ok' : x.sit === 'Remanejado' ? 'c-prov' : 'c-exc'}">${x.sit}</span>` : ''}${x.mover ? ' <span class="chip c-prov">remanejamento</span>' : ''}</td>
       <td>${x.erro ? `<span class="chip c-nao">Não será aplicada</span> <span class="note">${esc(x.erro)}</span>`
+        : x.alt ? esc(x.desc)
         : x.sit === 'Remanejado' ? `<div class="mv"><span class="note">De:</span> ${pick(x.popts, k, 'psel', 'Mais de um servidor com esse nome, escolha')}</div><div class="mv"><span class="note">Para:</span> ${pick(x.opts, k, 'sel', 'Escolha o cargo de destino')}</div>`
         : pick(x.opts, k, 'sel', 'Escolha')}</td></tr>`).join('')}</tbody></table></div>
     <div class="toolbar"><button type="button" class="btn primary" id="txt-apply" ${ok ? '' : 'disabled'}>Aplicar ${ok} alteraç${ok === 1 ? 'ão' : 'ões'}</button>
     <button type="button" class="btn" id="txt-cancel">Cancelar</button></div>`;
   box.querySelectorAll('select[data-k]').forEach(s => s.addEventListener('change', () => { PREVIEW[+s.dataset.k][s.dataset.f] = s.value; }));
   document.getElementById('txt-apply').addEventListener('click', applyPreview);
-  document.getElementById('txt-cancel').addEventListener('click', () => { PREVIEW = []; renderPreview(); document.getElementById('txt-file').value = ''; document.getElementById('txt-reman').value = ''; });
+  document.getElementById('txt-cancel').addEventListener('click', () => { PREVIEW = []; renderPreview(); document.getElementById('txt-file').value = ''; document.getElementById('txt-reman').value = ''; document.getElementById('txt-alt').value = ''; });
 }
 async function applyPreview(){
   const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR'), hist = D.historico = D.historico || [];
   let n = 0;
   PREVIEW.filter(x => !x.erro).forEach(x => {
+    if (x.alt) { applyAlt(x, dt, hoje, hist); n++; return; }
     if (x.sit === 'Exonerado') {
       const p = P[x.sel]; p.ex = dt; p.obs = `Exonerado em ${dt} (atualização por TXT).`;
       hist.unshift({d:hoje.toISOString(), u:LOGIN, a:'Exoneração', n:p.n, det:`${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} – ${U[p.u] ? U[p.u].nome : p.s}`});
@@ -819,13 +923,25 @@ async function applyPreview(){
   D.pessoas.sort((a, b) => a.n.localeCompare(b.n, 'pt-BR'));
   D.atualizado = hoje.toISOString(); D._rascunho = true;
   const blob = await encryptData(); lsSet(DRAFT_KEY, JSON.stringify(blob));
-  PREVIEW = []; document.getElementById('txt-file').value = ''; document.getElementById('txt-reman').value = '';
+  PREVIEW = []; document.getElementById('txt-file').value = ''; document.getElementById('txt-reman').value = ''; document.getElementById('txt-alt').value = '';
   refreshAll();
   document.getElementById('txt-preview').innerHTML = `<div class="callout">${n} alteraç${n === 1 ? 'ão aplicada' : 'ões aplicadas'}. Para valer para todos, baixe o <b>dados.enc</b> e substitua o arquivo no GitHub.</div>`;
 }
 
 /* ================= Painel de ferramentas ================= */
+function renderCodes(){
+  const box = document.getElementById('codes'); if (!box) return;
+  const qc = norm(document.getElementById('codes-q').value || '').trim();
+  const rows = D.unidades.map(u => {
+    const cs = u.cargos.filter(c => !qc || norm(c.nome + ' ' + u.nome + ' ' + c.id + ' ' + c.simbolo).includes(qc));
+    if (!cs.length && !(qc && norm(u.nome + ' ' + u.id).includes(qc))) return '';
+    return `<tr class="ugrp"><td><code>${code(u)}</code></td><td colspan="3"><b>${esc(u.nome)}</b></td></tr>` +
+      cs.map(c => `<tr><td><code>${code(c)}</code></td><td>${esc(c.nome)}</td><td>${esc(simbLabel(c))}</td><td class="n">${brl(c.valor)}</td></tr>`).join('');
+  }).join('');
+  box.innerHTML = `<table><thead><tr><th>Código</th><th>Secretaria / cargo</th><th>Símbolo</th><th class="n">Valor</th></tr></thead><tbody>${rows || '<tr><td colspan="4" class="note">Nada encontrado.</td></tr>'}</tbody></table>`;
+}
 function renderTools(){
+  renderCodes();
   const st = document.getElementById('save-state');
   st.innerHTML = D._rascunho
     ? `<div class="callout">Há alterações feitas neste navegador que ainda não estão no GitHub (${new Date(D.atualizado).toLocaleString('pt-BR')}).
@@ -857,6 +973,7 @@ async function saveUser(e){
   document.getElementById('dl-users').addEventListener('click', ev => { ev.preventDefault(); download('usuarios.json', JSON.stringify(USERS, null, 1)); });
 }
 document.getElementById('login-form').addEventListener('submit', doLogin);
+document.getElementById('codes-q').addEventListener('input', renderCodes);
 document.getElementById('logout').addEventListener('click', logout);
 document.getElementById('user-form').addEventListener('submit', saveUser);
 async function readTxt(file){ let t = await file.text(); if (t.includes('�')) t = new TextDecoder('windows-1252').decode(await file.arrayBuffer()); return t; }
@@ -867,6 +984,10 @@ document.getElementById('txt-file').addEventListener('change', async ev => {
 document.getElementById('txt-reman').addEventListener('change', async ev => {
   const f = ev.target.files[0]; if (!f) return;
   PREVIEW = parseTxt(await readTxt(f), 'reman'); renderPreview();
+});
+document.getElementById('txt-alt').addEventListener('change', async ev => {
+  const f = ev.target.files[0]; if (!f) return;
+  PREVIEW = parseAlt(await readTxt(f)); renderPreview();
 });
 
 </script>
