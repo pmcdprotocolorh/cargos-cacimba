@@ -193,14 +193,15 @@ details.users summary{cursor:pointer;font-weight:600}
       </div>
       <div class="txtopt">
         <h3>Cargos, secretarias e valores</h3>
-        <p class="note" style="margin:0"><code>CÓDIGO; CAMPO; NOVO VALOR</code><br>Criar cargo: <code>SECRETARIA; NOVO; NOME DO CARGO; SÍMBOLO ou VALOR; QUANTIDADE</code><br>Campos: <b>NOME</b>, <b>SECRETARIA</b> (muda o cargo de secretaria), <b>VALOR</b> e <b>QUANTIDADE</b>. Use o código do cargo (ex.: FIN-2), o da secretaria (ex.: FIN, só para NOME) ou um símbolo (ex.: CC-4, só para VALOR, muda todos os cargos desse símbolo).</p>
+        <p class="note" style="margin:0"><code>CÓDIGO; CAMPO; NOVO VALOR</code><br>Criar cargo: <code>SECRETARIA; NOVO; NOME DO CARGO; SÍMBOLO; VALOR; QUANTIDADE; LEI</code>. Se o símbolo ainda não existir no sistema, ele é incluído com o valor informado. Valor, quantidade e lei são opcionais quando o símbolo já existe.<br>Criar só o símbolo: <code>SÍMBOLO; NOVO; CÓDIGO; VALOR; LEI</code><br>Campos: <b>NOME</b>, <b>SECRETARIA</b> (muda o cargo de secretaria), <b>VALOR</b> e <b>QUANTIDADE</b>. Use o código do cargo (ex.: FIN-2), o da secretaria (ex.: FIN, só para NOME) ou um símbolo (ex.: CC-4, só para VALOR, muda todos os cargos desse símbolo).</p>
         <pre class="ex">FIN-2; NOME; Diretoria de Receitas e Tributos
 FIN-3; SECRETARIA; TRANSP
 CC-4; VALOR; 2.700,00
 HOSP-1; VALOR; 2.800,00
 FIN; NOME; Secretaria Municipal da Fazenda
 FIN; NOVO; Coordenação de Tesouraria; CC-4; 1
-HOSP; NOVO; Coordenador de Enfermagem; 2.600,00; 2</pre>
+SAUDE; NOVO; Coordenador do CEO; CC-10; 2.900,00; 1; Lei 189/2024
+SÍMBOLO; NOVO; FG-1; 800,00; Lei 150/2023</pre>
         <div><label for="txt-alt" class="btn primary">Escolher TXT de alterações</label><input id="txt-alt" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
       </div>
     </div>
@@ -563,12 +564,14 @@ const resolveV = v => v === 'SM' ? SALARIO_MINIMO : v;
 function valorCargo(c){
   if (c.v != null) return resolveV(c.v);
   if (D && D.valores && D.valores[c.simbolo] != null) return resolveV(D.valores[c.simbolo]);
+  if (D && D.simbolos && D.simbolos[c.simbolo]) return resolveV(D.simbolos[c.simbolo].v);
   if (/^R\$/.test(c.simbolo)) return parseFloat(c.simbolo.replace(/[R$\s.]/g, '').replace(',', '.'));
   return SAL[c.simbolo] || 0;
 }
 function notaValor(c){
   if (c.v != null) return `Valor deste cargo alterado por TXT em ${c.vd || ''}.`;
   if (D.valores && D.valores[c.simbolo] != null) return `Valor do símbolo ${c.simbolo} alterado por TXT em ${(D.valoresData || {})[c.simbolo] || ''}.`;
+  if (D.simbolos && D.simbolos[c.simbolo]) return `Símbolo ${c.simbolo} incluído por TXT em ${D.simbolos[c.simbolo].d || ''}${D.simbolos[c.simbolo].obs ? ' – ' + D.simbolos[c.simbolo].obs : ''}.`;
   return SAL_NOTA[c.simbolo] || '';
 }
 const code = x => x.id.toUpperCase();
@@ -603,7 +606,7 @@ async function decryptData(obj){
   return JSON.parse(dec.decode(pt));
 }
 function serializable(){
-  return {fonte:D.fonte, atualizado:D.atualizado, historico:D.historico || [], valores:D.valores || {}, valoresData:D.valoresData || {},
+  return {fonte:D.fonte, atualizado:D.atualizado, historico:D.historico || [], valores:D.valores || {}, valoresData:D.valoresData || {}, simbolos:D.simbolos || {},
     unidades:D.unidades.map(u => ({id:u.id, nome:u.nome, nome_lei:u.nome_lei, grupo:u.grupo,
       cargos:u.cargos.map(c => { const o = {id:c.id, nome:c.nome, simbolo:c.simbolo, qtd:c.qtd}; if (c.nota) o.nota = c.nota; if (c.v != null) { o.v = c.v; o.vd = c.vd; } return o; })})),
     pessoas:D.pessoas};
@@ -800,7 +803,10 @@ function parseTxt(text, modo){
   return out;
 }
 /* ---------- Alterações de cargos, secretarias e valores ---------- */
-const SIMBOLOS = Object.keys(SAL);
+const simbolos = () => [...Object.keys(SAL), ...Object.keys(D.simbolos || {})];
+const symVal = s => (D.valores || {})[s] != null ? resolveV(D.valores[s]) : SAL[s] != null ? SAL[s] : D.simbolos && D.simbolos[s] ? resolveV(D.simbolos[s].v) : null;
+const isValTxt = t => /minimo/.test(norm(t)) || /^\s*(r\$)?\s*[\d.,]+\s*$/i.test(t);
+const isQtdTxt = t => /^\d{1,2}$/.test(t.trim());
 function parseValor(t){
   if (/minimo/.test(norm(t))) return 'SM';
   let v = t.replace(/R\$|\s/gi, '');
@@ -816,7 +822,7 @@ function findUnit(t){
 }
 const unitOf = c => D.unidades.find(u => u.cargos.includes(c));
 function parseAlt(text){
-  const out = [];
+  const out = [], pend = {};
   text.split(/\r?\n/).forEach((linha, i) => {
     if (!linha.trim()) return;
     const f = linha.split(/[;|\t]/).map(x => x.trim()).filter(x => x !== '');
@@ -827,28 +833,54 @@ function parseAlt(text){
     const cod = f[0], campoT = norm(f[1]), novo = f.slice(2).join('; ');
     const campo = /^(novo|nova|criar|cria|inclu|adicion)/.test(campoT) ? 'novo' : /^(nome|denomina)/.test(campoT) ? 'nome' : /^(secret|lota|orgao)/.test(campoT) ? 'sec' : /^(valor|venc|salar|subsid)/.test(campoT) ? 'valor' : /^(quant|qtd)/.test(campoT) ? 'qtd' : null;
     if (!campo) { it.erro = `Campo "${f[1]}" não reconhecido. Use NOVO, NOME, SECRETARIA, VALOR ou QUANTIDADE.`; return; }
+    if (campo === 'novo' && /^simbolo/.test(norm(cod))) {
+      // SÍMBOLO; NOVO; CÓDIGO DO SÍMBOLO; VALOR; OBSERVAÇÃO (ex.: lei de origem)
+      const sy = (f[2] || '').toUpperCase(), v = parseValor(f[3] || '');
+      it.nome = `Símbolo ${sy}`;
+      if (!sy || isValTxt(sy)) { it.erro = 'Use: SÍMBOLO; NOVO; CÓDIGO DO SÍMBOLO; VALOR; LEI (opcional).'; return; }
+      if (simbolos().some(x => x.toUpperCase() === sy) || pend[sy]) { it.erro = `O símbolo ${sy} já existe. Para mudar o valor, use ${sy}; VALOR; novo valor.`; return; }
+      if (v == null) { it.erro = `Informe o valor do símbolo ${sy}.`; return; }
+      pend[sy] = v;
+      Object.assign(it, {tipo:'simnovo', alvo:sy, novo:{v, obs:f.slice(4).join('; ')}, desc:`Novo símbolo ${sy}: ${fmtV(v)}${f[4] ? ' · ' + f.slice(4).join('; ') : ''}`});
+      return;
+    }
     if (campo === 'novo') {
       const un = U[cod.toLowerCase()] || (findUnit(cod).length === 1 ? findUnit(cod)[0] : null);
       if (!un) { it.erro = `Secretaria "${cod}" não encontrada. Para criar um cargo, a linha começa pelo código da secretaria (ex.: FIN).`; return; }
-      const [, , nomeC, sv = '', qv = '1'] = f;
+      const nomeC = f[2]; let rest = f.slice(3);
       it.nome = nomeC;
       const dup = un.cargos.find(c => norm(c.nome) === norm(nomeC));
       if (dup) { it.erro = `Já existe "${dup.nome}" nesta secretaria (${code(dup)}). Para mais vagas, use ${code(dup)}; QUANTIDADE; n.`; return; }
-      const sym = SIMBOLOS.find(x => x.toLowerCase() === sv.toLowerCase());
-      const v = sym ? null : parseValor(sv);
-      if (!sym && v == null) { it.erro = `Informe o símbolo (ex.: CC-4) ou o valor (ex.: 2.800,00) do cargo novo.`; return; }
-      const q = parseInt(qv, 10); if (!(q >= 1)) { it.erro = `Quantidade "${qv}" inválida.`; return; }
-      Object.assign(it, {tipo:'novo', alvo:un.id, novo:{nome:nomeC, simbolo:sym || '', v, qtd:q},
-        desc:`Novo cargo em ${un.nome}: ${nomeC} · ${sym ? `${sym} (${brl(valorCargo({simbolo:sym}))})` : fmtV(v)} · ${q} vaga${q > 1 ? 's' : ''}`});
+      // campos: [SÍMBOLO]; [VALOR]; [QUANTIDADE]; [LEI]
+      let sy = null, v = null, q = 1, obs = '';
+      if (rest.length && !isValTxt(rest[0])) { sy = rest[0].toUpperCase(); rest = rest.slice(1); }
+      if (rest.length && isValTxt(rest[0]) && !(isQtdTxt(rest[0]) && sy)) { v = parseValor(rest[0]); rest = rest.slice(1); }
+      if (rest.length && isQtdTxt(rest[0])) { q = parseInt(rest[0], 10); rest = rest.slice(1); }
+      obs = rest.join('; ');
+      if (!(q >= 1)) { it.erro = 'Quantidade inválida.'; return; }
+      const known = sy && (simbolos().find(x => x.toUpperCase() === sy) || (pend[sy] != null ? sy : null));
+      let novoSym = null;
+      if (sy && !known) {
+        if (v == null) { it.erro = `O símbolo ${sy} ainda não existe no sistema: informe também o valor (ex.: ${un.id.toUpperCase()}; NOVO; ${nomeC}; ${sy}; 3.000,00; 1).`; return; }
+        novoSym = {sym:sy, v, obs}; pend[sy] = v;
+      }
+      if (!sy && v == null) { it.erro = 'Informe o símbolo (ex.: CC-4) e/ou o valor (ex.: 2.800,00) do cargo novo.'; return; }
+      const simb = known || sy || '';
+      const symV = known ? (pend[known] != null && !simbolos().includes(known) ? pend[known] : symVal(known)) : null;
+      // símbolo existente + valor diferente => valor próprio do cargo
+      const vCargo = novoSym ? null : (v != null && (!known || v !== symV) ? v : null);
+      const vShow = vCargo != null ? vCargo : novoSym ? v : symV;
+      Object.assign(it, {tipo:'novo', alvo:un.id, novo:{nome:nomeC, simbolo:simb, v:vCargo, qtd:q, novoSym, obs},
+        desc:`Novo cargo em ${un.nome}: ${nomeC} · ${simb ? simb + ' · ' : ''}${fmtV(vShow)} · ${q} vaga${q > 1 ? 's' : ''}${novoSym ? ` · inclui o símbolo novo ${sy}` : ''}${vCargo != null && known ? ` (valor próprio; o símbolo ${known} vale ${fmtV(symV)})` : ''}`});
       return;
     }
     it.campo = campo;
-    const sym = SIMBOLOS.find(x => x.toLowerCase() === cod.toLowerCase());
+    const sym = [...simbolos(), ...Object.keys(pend)].find(x => x.toLowerCase() === cod.toLowerCase());
     const c = C[cod.toLowerCase()], u = U[cod.toLowerCase()];
     if (campo === 'valor' && sym && !c) {
       const v = parseValor(novo); if (v == null) { it.erro = `Valor "${novo}" inválido.`; return; }
       const n = D.unidades.reduce((a, un) => a + un.cargos.filter(x => x.simbolo === sym && x.v == null).length, 0);
-      Object.assign(it, {tipo:'sym', alvo:sym, nome:`Símbolo ${sym}`, novo:v, desc:`Valor de todos os cargos ${sym} (${n}): ${brl((D.valores||{})[sym] != null ? resolveV(D.valores[sym]) : SAL[sym])} → ${fmtV(v)}`});
+      Object.assign(it, {tipo:'sym', alvo:sym, nome:`Símbolo ${sym}`, novo:v, desc:`Valor de todos os cargos ${sym}${pend[sym] == null ? ` (${n})` : ''}: ${brl(pend[sym] != null && symVal(sym) == null ? pend[sym] : symVal(sym))} → ${fmtV(v)}`});
       return;
     }
     if (c) {
@@ -877,9 +909,12 @@ function parseAlt(text){
 }
 function applyAlt(x, dt, hoje, hist){
   let det = x.desc;
-  if (x.tipo === 'novo') {
+  if (x.tipo === 'simnovo') {
+    D.simbolos = D.simbolos || {}; D.simbolos[x.alvo] = {v:x.novo.v, d:dt, obs:x.novo.obs};
+  } else if (x.tipo === 'novo') {
+    if (x.novo.novoSym && !(D.simbolos || {})[x.novo.novoSym.sym]) { D.simbolos = D.simbolos || {}; D.simbolos[x.novo.novoSym.sym] = {v:x.novo.novoSym.v, d:dt, obs:x.novo.novoSym.obs}; }
     const u = U[x.alvo]; let k = u.cargos.length; while (C[`${u.id}-${k}`]) k++;
-    const c = {id:`${u.id}-${k}`, nome:x.novo.nome, simbolo:x.novo.simbolo, qtd:x.novo.qtd, nota:`Cargo criado por TXT em ${dt}.`, oc:[]};
+    const c = {id:`${u.id}-${k}`, nome:x.novo.nome, simbolo:x.novo.simbolo, qtd:x.novo.qtd, nota:`Cargo criado por TXT em ${dt}${x.novo.obs ? ' – ' + x.novo.obs : ''}.`, oc:[]};
     if (x.novo.v != null) { c.v = x.novo.v; c.vd = dt; }
     u.cargos.push(c); C[c.id] = c; det = x.desc + ` · código ${code(c)}`;
   } else if (x.tipo === 'sym') { D.valores = D.valores || {}; D.valoresData = D.valoresData || {}; D.valores[x.alvo] = x.novo; D.valoresData[x.alvo] = dt; }
@@ -960,7 +995,13 @@ function renderCodes(){
     return `<tr class="ugrp"><td><code>${code(u)}</code></td><td colspan="3"><b>${esc(u.nome)}</b></td></tr>` +
       cs.map(c => `<tr><td><code>${code(c)}</code></td><td>${esc(c.nome)}</td><td>${esc(simbLabel(c))}</td><td class="n">${brl(c.valor)}</td></tr>`).join('');
   }).join('');
-  box.innerHTML = `<table><thead><tr><th>Código</th><th>Secretaria / cargo</th><th>Símbolo</th><th class="n">Valor</th></tr></thead><tbody>${rows || '<tr><td colspan="4" class="note">Nada encontrado.</td></tr>'}</tbody></table>`;
+  const syms = simbolos().filter(sy => !qc || norm(sy).includes(qc));
+  const symTbl = `<table><thead><tr><th>Símbolo</th><th class="n">Valor</th><th>Origem</th></tr></thead><tbody>${syms.map(sy => {
+    const cu = (D.simbolos || {})[sy];
+    const orig = cu ? `Incluído por TXT em ${esc(cu.d)}${cu.obs ? ' – ' + esc(cu.obs) : ''}` : 'Lei 230/2026, Anexo I';
+    const alt = (D.valores || {})[sy] != null ? ` · valor alterado em ${esc((D.valoresData || {})[sy] || '')}` : '';
+    return `<tr><td><code>${esc(sy)}</code></td><td class="n">${brl(symVal(sy))}</td><td class="note">${orig}${alt}</td></tr>`; }).join('')}</tbody></table>`;
+  box.innerHTML = symTbl + `<table><thead><tr><th>Código</th><th>Secretaria / cargo</th><th>Símbolo</th><th class="n">Valor</th></tr></thead><tbody>${rows || '<tr><td colspan="4" class="note">Nada encontrado.</td></tr>'}</tbody></table>`;
 }
 function renderTools(){
   renderCodes();
