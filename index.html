@@ -193,12 +193,14 @@ details.users summary{cursor:pointer;font-weight:600}
       </div>
       <div class="txtopt">
         <h3>Cargos, secretarias e valores</h3>
-        <p class="note" style="margin:0"><code>CÓDIGO; CAMPO; NOVO VALOR</code><br>Campos: <b>NOME</b>, <b>SECRETARIA</b> (muda o cargo de secretaria), <b>VALOR</b> e <b>QUANTIDADE</b>. Use o código do cargo (ex.: FIN-2), o da secretaria (ex.: FIN, só para NOME) ou um símbolo (ex.: CC-4, só para VALOR, muda todos os cargos desse símbolo).</p>
+        <p class="note" style="margin:0"><code>CÓDIGO; CAMPO; NOVO VALOR</code><br>Criar cargo: <code>SECRETARIA; NOVO; NOME DO CARGO; SÍMBOLO ou VALOR; QUANTIDADE</code><br>Campos: <b>NOME</b>, <b>SECRETARIA</b> (muda o cargo de secretaria), <b>VALOR</b> e <b>QUANTIDADE</b>. Use o código do cargo (ex.: FIN-2), o da secretaria (ex.: FIN, só para NOME) ou um símbolo (ex.: CC-4, só para VALOR, muda todos os cargos desse símbolo).</p>
         <pre class="ex">FIN-2; NOME; Diretoria de Receitas e Tributos
 FIN-3; SECRETARIA; TRANSP
 CC-4; VALOR; 2.700,00
 HOSP-1; VALOR; 2.800,00
-FIN; NOME; Secretaria Municipal da Fazenda</pre>
+FIN; NOME; Secretaria Municipal da Fazenda
+FIN; NOVO; Coordenação de Tesouraria; CC-4; 1
+HOSP; NOVO; Coordenador de Enfermagem; 2.600,00; 2</pre>
         <div><label for="txt-alt" class="btn primary">Escolher TXT de alterações</label><input id="txt-alt" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
       </div>
     </div>
@@ -570,7 +572,7 @@ function notaValor(c){
   return SAL_NOTA[c.simbolo] || '';
 }
 const code = x => x.id.toUpperCase();
-const simbLabel = c => /^R\$/.test(c.simbolo) ? 'Lei 147' : c.simbolo;
+const simbLabel = c => /^R\$/.test(c.simbolo) ? 'Lei 147' : (c.simbolo || '—');
 
 /* ================= Dados, criptografia e login ================= */
 let D, P = {}, U = {}, C = {}, IDX = [], KEY = null, USERS = null, LOGIN = '';
@@ -823,8 +825,23 @@ function parseAlt(text){
     out.push(it);
     if (f.length < 3) { it.erro = 'Use: CÓDIGO; CAMPO; NOVO VALOR.'; return; }
     const cod = f[0], campoT = norm(f[1]), novo = f.slice(2).join('; ');
-    const campo = /^(nome|denomina)/.test(campoT) ? 'nome' : /^(secret|lota|orgao)/.test(campoT) ? 'sec' : /^(valor|venc|salar|subsid)/.test(campoT) ? 'valor' : /^(quant|qtd)/.test(campoT) ? 'qtd' : null;
-    if (!campo) { it.erro = `Campo "${f[1]}" não reconhecido. Use NOME, SECRETARIA, VALOR ou QUANTIDADE.`; return; }
+    const campo = /^(novo|nova|criar|cria|inclu|adicion)/.test(campoT) ? 'novo' : /^(nome|denomina)/.test(campoT) ? 'nome' : /^(secret|lota|orgao)/.test(campoT) ? 'sec' : /^(valor|venc|salar|subsid)/.test(campoT) ? 'valor' : /^(quant|qtd)/.test(campoT) ? 'qtd' : null;
+    if (!campo) { it.erro = `Campo "${f[1]}" não reconhecido. Use NOVO, NOME, SECRETARIA, VALOR ou QUANTIDADE.`; return; }
+    if (campo === 'novo') {
+      const un = U[cod.toLowerCase()] || (findUnit(cod).length === 1 ? findUnit(cod)[0] : null);
+      if (!un) { it.erro = `Secretaria "${cod}" não encontrada. Para criar um cargo, a linha começa pelo código da secretaria (ex.: FIN).`; return; }
+      const [, , nomeC, sv = '', qv = '1'] = f;
+      it.nome = nomeC;
+      const dup = un.cargos.find(c => norm(c.nome) === norm(nomeC));
+      if (dup) { it.erro = `Já existe "${dup.nome}" nesta secretaria (${code(dup)}). Para mais vagas, use ${code(dup)}; QUANTIDADE; n.`; return; }
+      const sym = SIMBOLOS.find(x => x.toLowerCase() === sv.toLowerCase());
+      const v = sym ? null : parseValor(sv);
+      if (!sym && v == null) { it.erro = `Informe o símbolo (ex.: CC-4) ou o valor (ex.: 2.800,00) do cargo novo.`; return; }
+      const q = parseInt(qv, 10); if (!(q >= 1)) { it.erro = `Quantidade "${qv}" inválida.`; return; }
+      Object.assign(it, {tipo:'novo', alvo:un.id, novo:{nome:nomeC, simbolo:sym || '', v, qtd:q},
+        desc:`Novo cargo em ${un.nome}: ${nomeC} · ${sym ? `${sym} (${brl(valorCargo({simbolo:sym}))})` : fmtV(v)} · ${q} vaga${q > 1 ? 's' : ''}`});
+      return;
+    }
     it.campo = campo;
     const sym = SIMBOLOS.find(x => x.toLowerCase() === cod.toLowerCase());
     const c = C[cod.toLowerCase()], u = U[cod.toLowerCase()];
@@ -860,7 +877,12 @@ function parseAlt(text){
 }
 function applyAlt(x, dt, hoje, hist){
   let det = x.desc;
-  if (x.tipo === 'sym') { D.valores = D.valores || {}; D.valoresData = D.valoresData || {}; D.valores[x.alvo] = x.novo; D.valoresData[x.alvo] = dt; }
+  if (x.tipo === 'novo') {
+    const u = U[x.alvo]; let k = u.cargos.length; while (C[`${u.id}-${k}`]) k++;
+    const c = {id:`${u.id}-${k}`, nome:x.novo.nome, simbolo:x.novo.simbolo, qtd:x.novo.qtd, nota:`Cargo criado por TXT em ${dt}.`, oc:[]};
+    if (x.novo.v != null) { c.v = x.novo.v; c.vd = dt; }
+    u.cargos.push(c); C[c.id] = c; det = x.desc + ` · código ${code(c)}`;
+  } else if (x.tipo === 'sym') { D.valores = D.valores || {}; D.valoresData = D.valoresData || {}; D.valores[x.alvo] = x.novo; D.valoresData[x.alvo] = dt; }
   else if (x.tipo === 'unid') { U[x.alvo].nome = x.novo; }
   else {
     const c = C[x.alvo];
