@@ -165,27 +165,27 @@ details.users summary{cursor:pointer;font-weight:600}
   <div id="app" hidden style="display:grid;gap:22px">
   <div class="userbar"><span class="note">Conectado como <b id="who"></b></span><button type="button" class="btn small" id="logout">Sair</button></div>
   <section class="card search" aria-labelledby="lbl-busca">
-    <label id="lbl-busca" for="q">Consultar servidor pelo nome</label>
-    <input id="q" type="search" placeholder="Digite parte do nome, ex.: maria jose" autocomplete="off">
+    <label id="lbl-busca" for="q">Consultar servidor pelo nome ou matrícula</label>
+    <input id="q" type="search" placeholder="Digite parte do nome ou a matrícula, ex.: maria jose ou 0065448" autocomplete="off">
     <div id="results" class="results" aria-live="polite"></div>
   </section>
 
   <section class="card" style="display:grid;gap:14px" aria-labelledby="h-tools">
     <h2 id="h-tools">Atualizar por arquivo TXT</h2>
-    <p class="note" style="margin:0">Uma linha por servidor, com os campos separados por ponto e vírgula. A secretaria é opcional, mas evita dúvida em cargos que existem em várias secretarias (ex.: Assessor Nível I). Antes de aplicar, a página mostra o que vai mudar.</p>
+    <p class="note" style="margin:0">Uma linha por servidor, com os campos separados por ponto e vírgula. Use a <b>matrícula</b> para identificar o servidor: ela é única e evita confusão entre nomes iguais (o nome ainda é aceito, mas a matrícula é mais segura). A secretaria é opcional, mas evita dúvida em cargos que existem em várias secretarias (ex.: Assessor Nível I). Antes de aplicar, a página mostra o que vai mudar.</p>
     <div class="txtopts">
       <div class="txtopt">
         <h3>Nomeações e exonerações</h3>
-        <p class="note" style="margin:0"><code>NOME; CARGO; NOMEADO ou EXONERADO; SECRETARIA</code></p>
-        <pre class="ex">MARIA DA SILVA SOUZA; Coordenador de Laboratório; NOMEADO; Hospital
-JOSE PEREIRA LIMA; Assessor Nível II; EXONERADO; Finanças</pre>
+        <p class="note" style="margin:0">Exoneração: <code>MATRÍCULA; EXONERADO</code><br>Nomeação: <code>MATRÍCULA; NOME; CARGO; NOMEADO; SECRETARIA</code><br>Na nomeação de quem ainda não está no sistema, informe a matrícula nova e o nome.</p>
+        <pre class="ex">0065432; EXONERADO
+0065700; MARIA DA SILVA SOUZA; Coordenador de Laboratório; NOMEADO; Hospital</pre>
         <div><label for="txt-file" class="btn primary">Escolher TXT de nomeações e exonerações</label><input id="txt-file" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
       </div>
       <div class="txtopt">
         <h3>Remanejamento entre secretarias</h3>
-        <p class="note" style="margin:0"><code>NOME; CARGO DE DESTINO; SECRETARIA DE DESTINO</code><br>Só para quem já é comissionado. O servidor sai do cargo atual e passa para o cargo informado.</p>
-        <pre class="ex">AMANDA DA SILVA VALVERDE; Assessor Nível II; Transportes
-DAYANE SANTOS DO NASCIMENTO; Coordenação de Contabilidade; Finanças</pre>
+        <p class="note" style="margin:0"><code>MATRÍCULA; CARGO DE DESTINO; SECRETARIA DE DESTINO</code><br>Só para quem já é comissionado. O servidor sai do cargo atual e passa para o cargo informado.</p>
+        <pre class="ex">0065620; Assessor Nível II; Transportes
+0065448; Coordenação de Contabilidade; Finanças</pre>
         <div><label for="txt-reman" class="btn primary">Escolher TXT de remanejamento</label><input id="txt-reman" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
       </div>
     </div>
@@ -250,8 +250,10 @@ function personCard(p){
 }
 function doSearch(){
   const t = norm(q.value).trim().split(/\s+/).filter(Boolean);
-  if (!t.length){ out.innerHTML = `<div class="hint">${fmt(D.pessoas.length)} vínculos nas folhas de outubro/2026 (Prefeitura e Saúde). A busca ignora acentos e aceita partes do nome em qualquer ordem.</div>`; return; }
-  const hits = IDX.filter(([n]) => t.every(w => n.includes(w))).map(x => x[1]);
+  if (!t.length){ out.innerHTML = `<div class="hint">${fmt(D.pessoas.length)} vínculos nas folhas de outubro/2026 (Prefeitura e Saúde). A busca ignora acentos e aceita partes do nome em qualquer ordem, ou a matrícula.</div>`; return; }
+  const qm = q.value.trim();
+  const hits = /^\d{2,}$/.test(qm) ? D.pessoas.filter(p => p.m.includes(qm) || p.m === qm.padStart(7, '0'))
+             : IDX.filter(([n]) => t.every(w => n.includes(w))).map(x => x[1]);
   if (!hits.length){ out.innerHTML = `<div class="hint">Nenhum servidor encontrado com “${esc(q.value)}”. Confira a grafia ou digite só o primeiro nome.</div>`; return; }
   out.innerHTML = `<div class="hint">${hits.length} resultado${hits.length>1?'s':''}${hits.length>60?' (mostrando os 60 primeiros; refine a busca)':''}</div>` + hits.slice(0,60).map(personCard).join('');
 }
@@ -688,47 +690,79 @@ function findPessoas(nome, apenasComiss){
 }
 let PREVIEW = [];
 const pessoaDesc = p => `${p.n} – ${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} (${U[p.u] ? U[p.u].nome : p.s}) · mat. ${p.m}`;
+const isMat = x => /^\d{3,8}$/.test(x) || /^N[0-9A-Z]{4,}$/i.test(x);
+const padMat = x => /^\d+$/.test(x) ? x.padStart(7, '0') : x.toUpperCase();
+const sameName = (txt, p) => { const w = norm(txt).split(/\s+/).filter(x => x.length >= 2); const pn = norm(p.n).split(/\s+/); return w.length > 0 && w.every(x => pn.includes(x)); };
+function cargoOpts(cargo, sec){
+  const cs = findCargos(cargo, sec);
+  return cs.map(x => ({val:x.c.id, txt:`${x.c.nome} – ${x.u.nome} (${x.c.vagas} vaga${x.c.vagas !== 1 ? 's' : ''})`}));
+}
 function parseTxt(text, modo){
   const out = [];
   text.split(/\r?\n/).forEach((linha, i) => {
     if (!linha.trim()) return;
-    const f = linha.split(/[;|\t]/).map(x => x.trim());
+    let f = linha.split(/[;|\t]/).map(x => x.trim()).filter(x => x !== '');
+    if (/^(matr|nome)/i.test(norm(f[0] || ''))) return;   // cabeçalho
     const si = f.findIndex(x => /^(nomead|nomea|exonera|reman|transfer)/i.test(norm(x)));
-    if (si < 0 && /^nome\b/i.test(norm(f[0]))) return;   // cabeçalho
-    if (si < 0 && modo !== 'reman') { out.push({n:i+1, linha, erro:'Não encontrei "nomeado", "exonerado" ou "remanejado" na linha.'}); return; }
+    if (si < 0 && modo !== 'reman') { out.push({n:i+1, linha, erro:'Não encontrei "nomeado" ou "exonerado" na linha.'}); return; }
     const sv = si < 0 ? 'reman' : norm(f[si]);
     const sit = /^exonera/.test(sv) ? 'Exonerado' : /^(reman|transfer)/.test(sv) ? 'Remanejado' : 'Nomeado';
-    const rest = si < 0 ? f : f.filter((_, k) => k !== si);
-    const [nome, cargo = '', sec = ''] = rest;
-    if (!nome) { out.push({n:i+1, linha, erro:'Linha sem nome.'}); return; }
-    const it = {n:i+1, linha, nome, cargo, sec, sit};
-    if (sit === 'Remanejado') {
-      const ps = findPessoas(nome, true);
-      if (!ps.length) it.erro = 'Nenhum comissionado ativo com esse nome. Para alguém que ainda não é comissionado, use NOMEADO.';
+    let rest = si < 0 ? f : f.filter((_, k) => k !== si);
+    // matrícula (opcional, mas recomendada)
+    const mi = rest.findIndex(isMat);
+    const mat = mi >= 0 ? padMat(rest[mi]) : null;
+    if (mi >= 0) rest = rest.filter((_, k) => k !== mi);
+    const pm = mat ? P[mat] : null;
+    if (pm && rest.length && sameName(rest[0], pm)) rest = rest.slice(1);   // nome repetido junto da matrícula
+    const it = {n:i+1, linha, sit, mat};
+    let pessoas = [];
+    if (mat) {
+      if (pm) { it.nome = pm.n; pessoas = [pm]; }
+      else if (sit !== 'Nomeado') { it.nome = mat; it.erro = `Matrícula ${mat} não encontrada.`; out.push(it); return; }
+    }
+    if (!mat || (!pm && sit === 'Nomeado')) {
+      it.nome = rest[0] || '';
+      if (!it.nome) { it.erro = mat ? 'Matrícula nova: informe também o nome do servidor.' : 'Linha sem nome ou matrícula.'; out.push(it); return; }
+      rest = rest.slice(1);
+      if (!mat) pessoas = findPessoas(it.nome, true);
+    }
+    const [cargo = '', sec = ''] = rest;
+    it.cargo = cargo; it.sec = sec;
+    const ativo = p => !p.ex && p.v === 'Comissionado';
+    if (sit === 'Exonerado') {
+      if (pm && pm.ex) it.erro = `Já exonerado em ${pm.ex}.`;
+      else if (pm && pm.v !== 'Comissionado') it.erro = `A matrícula ${mat} é de vínculo ${pm.v.toLowerCase()}; a exoneração por TXT vale para comissionados.`;
+      else {
+        let ps = pessoas.filter(ativo);
+        if (!mat && ps.length > 1 && cargo) { const f2 = ps.filter(p => (p.cl && findCargos(cargo, sec).some(x => x.c.id === p.cl)) || toks(p.c).some(w => toks(cargo).includes(w))); if (f2.length) ps = f2; }
+        if (!ps.length) it.erro = 'Nenhum comissionado ativo com esse nome.';
+        else it.opts = ps.map(p => ({val:p.m, txt:pessoaDesc(p)}));
+      }
+    } else if (sit === 'Remanejado') {
+      const ps = pessoas.filter(ativo);
+      if (pm && pm.ex) it.erro = `Servidor exonerado em ${pm.ex}.`;
+      else if (pm && pm.v !== 'Comissionado') it.erro = `A matrícula ${mat} é de vínculo ${pm.v.toLowerCase()}; o remanejamento vale para comissionados.`;
+      else if (!ps.length) it.erro = 'Nenhum comissionado ativo com esse nome. Para alguém que ainda não é comissionado, use NOMEADO.';
       else if (!cargo) it.erro = 'Informe o cargo de destino.';
       else {
         it.popts = ps.map(p => ({val:p.m, txt:pessoaDesc(p)})); it.psel = it.popts[0].val;
-        const cs = findCargos(cargo, sec);
-        if (!cs.length) it.erro = `Cargo de destino "${cargo}" não encontrado na lei.`;
+        const co = cargoOpts(cargo, sec);
+        if (!co.length) it.erro = `Cargo de destino "${cargo}" não encontrado na lei.`;
         else {
-          it.opts = cs.map(x => ({val:x.c.id, txt:`${x.c.nome} – ${x.u.nome} (${x.c.vagas} vaga${x.c.vagas !== 1 ? 's' : ''})`}));
-          const pp = P[it.psel];
-          if (ps.length === 1 && cs.length === 1 && pp.st !== 'nao' && pp.cl === cs[0].c.id) it.erro = 'O servidor já ocupa esse cargo.';
+          it.opts = co; const pp = P[it.psel];
+          if (ps.length === 1 && co.length === 1 && pp.st !== 'nao' && pp.cl === co[0].val) it.erro = 'O servidor já ocupa esse cargo.';
         }
       }
-    } else if (sit === 'Exonerado') {
-      let ps = findPessoas(nome, true);
-      if (ps.length > 1 && cargo) { const f2 = ps.filter(p => (p.cl && findCargos(cargo, sec).some(x => x.c.id === p.cl)) || toks(p.c).some(w => toks(cargo).includes(w))); if (f2.length) ps = f2; }
-      if (!ps.length) it.erro = 'Nenhum comissionado ativo com esse nome.';
-      else it.opts = ps.map(p => ({val:p.m, txt:pessoaDesc(p)}));
     } else {
-      if (!cargo) { it.erro = 'Informe o cargo para a nomeação.'; }
+      if (!cargo) it.erro = 'Informe o cargo para a nomeação.';
       else {
-        const cs = findCargos(cargo, sec);
-        if (!cs.length) it.erro = `Cargo "${cargo}" não encontrado na lei.`;
-        else it.opts = cs.map(x => ({val:x.c.id, txt:`${x.c.nome} – ${x.u.nome} (${x.c.vagas} vaga${x.c.vagas !== 1 ? 's' : ''})`}));
-        const ex = findPessoas(nome, true);
-        it.mover = ex.length === 1 ? ex[0].m : null;
+        const co = cargoOpts(cargo, sec);
+        if (!co.length) it.erro = `Cargo "${cargo}" não encontrado na lei.`;
+        else it.opts = co;
+        const ps = pessoas.filter(ativo);
+        if (pm && pm.ex) it.novaMat = true;                     // reintegração com a mesma matrícula
+        else if (pm && pm.v !== 'Comissionado') it.de = pm.m;   // efetivo/contratado nomeado em comissão
+        else it.mover = ps.length === 1 ? ps[0].m : null;
       }
     }
     if (it.opts) it.sel = it.opts[0].val;
@@ -746,7 +780,7 @@ function renderPreview(){
   const ok = PREVIEW.filter(x => !x.erro).length;
   box.innerHTML = `<div class="tbl-wrap"><table>
     <thead><tr><th>Linha</th><th>Nome</th><th>Ação</th><th>Será aplicado em</th></tr></thead>
-    <tbody>${PREVIEW.map((x, k) => `<tr><td class="n">${x.n}</td><td>${esc(x.nome || x.linha)}</td>
+    <tbody>${PREVIEW.map((x, k) => `<tr><td class="n">${x.n}</td><td>${esc(x.nome || x.linha)}${x.mat ? `<div class="note">mat. ${esc(x.mat)}</div>` : ''}</td>
       <td>${x.sit ? `<span class="chip ${x.sit === 'Nomeado' ? 'c-ok' : x.sit === 'Remanejado' ? 'c-prov' : 'c-exc'}">${x.sit}</span>` : ''}${x.mover ? ' <span class="chip c-prov">remanejamento</span>' : ''}</td>
       <td>${x.erro ? `<span class="chip c-nao">Não será aplicada</span> <span class="note">${esc(x.erro)}</span>`
         : x.sit === 'Remanejado' ? `<div class="mv"><span class="note">De:</span> ${pick(x.popts, k, 'psel', 'Mais de um servidor com esse nome, escolha')}</div><div class="mv"><span class="note">Para:</span> ${pick(x.opts, k, 'sel', 'Escolha o cargo de destino')}</div>`
@@ -770,7 +804,13 @@ async function applyPreview(){
       if (mv && P[mv].cl === c.id && P[mv].st !== 'nao') return;   // já está nesse cargo
       let p = mv ? P[mv] : null, acao = 'Nomeação';
       if (p) { acao = 'Remanejamento'; p.obs = `Remanejado em ${dt}; antes: ${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} (${U[p.u] ? U[p.u].nome : p.s}).`; }
-      else { p = {f:'Atualização', m:'N' + Date.now().toString(36).toUpperCase() + n, n:x.nome.toUpperCase(), adm:dt, v:'Comissionado'}; D.pessoas.push(p); p.obs = `Nomeado em ${dt} (atualização por TXT).`; }
+      else {
+        let m = x.mat && !P[x.mat] ? x.mat : (x.mat ? x.mat + '-C' : 'N' + Date.now().toString(36).toUpperCase() + n);
+        while (P[m] && !P[m].ex) m += '-C';
+        if (P[m]) { p = P[m]; delete p.ex; } else { p = {f:'Atualização', m, n:x.nome.toUpperCase(), adm:dt, v:'Comissionado'}; D.pessoas.push(p); P[m] = p; }
+        p.adm = dt;
+        p.obs = x.de ? `Nomeado em comissão em ${dt}; também tem o vínculo ${P[x.de].v.toLowerCase()} de matrícula ${x.de}.` : `Nomeado em ${dt} (atualização por TXT).`;
+      }
       Object.assign(p, {c:c.nome.toUpperCase(), l:'Atualização por TXT', s:u.nome, u:u.id, cl:c.id, st:'exata'});
       hist.unshift({d:hoje.toISOString(), u:LOGIN, a:acao, n:p.n, det:`${c.nome} – ${u.nome}`});
     }
