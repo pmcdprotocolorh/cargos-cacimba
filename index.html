@@ -143,6 +143,11 @@ pre.ex{margin:0;padding:10px 12px;background:var(--bg);border:1px solid var(--li
 .codes{max-height:420px;overflow:auto}
 .codes tr.ugrp td{background:var(--bg);padding-top:12px}
 code{font-size:12.5px}
+.novasec{display:grid;gap:12px;padding:16px;border:1px solid var(--accent);border-radius:10px;background:var(--accent-soft)}
+.ns-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.ns-grid label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
+.ns-grid select{width:100%}
+.btn.danger{background:var(--bad);border-color:var(--bad);color:var(--surface)}
 details.users summary{cursor:pointer;font-weight:600}
 @media (max-width:640px){ h1{font-size:23px} .tile .v{font-size:24px} .hide-sm{display:none} }
 @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
@@ -324,7 +329,21 @@ function overview(){
   </section>
 
   <section class="card" style="display:grid;gap:12px" aria-labelledby="h-tab">
-    <div class="sectionhead"><h2 id="h-tab">Secretarias e órgãos</h2><span class="sub">Clique numa linha para ver cargo por cargo</span></div>
+    <div class="sectionhead"><h2 id="h-tab">Secretarias e órgãos</h2><div class="toolbar"><span class="sub">Clique numa linha para ver cargo por cargo</span><button type="button" class="btn primary" id="nova-sec-btn" aria-expanded="false" aria-controls="nova-sec">+ Nova secretaria</button></div></div>
+    <form id="nova-sec" class="novasec" hidden>
+      <h3>Nova secretaria</h3>
+      <div class="ns-grid">
+        <div><label for="ns-nome">Nome da secretaria</label><input id="ns-nome" required placeholder="Ex.: Secretaria Municipal de Habitação" autocomplete="off"></div>
+        <div><label for="ns-nat">Natureza</label>
+          <select id="ns-nat">${[...new Set([...NATUREZAS, ...D.unidades.map(u => u.grupo)])].map(g => `<option>${esc(g)}</option>`).join('')}<option value="__outra">Outra…</option></select></div>
+        <div id="ns-outra-box" hidden><label for="ns-outra">Qual natureza?</label><input id="ns-outra" autocomplete="off" placeholder="Ex.: Natureza econômica"></div>
+        <div><label for="ns-cod">Código</label><input id="ns-cod" maxlength="10" autocomplete="off" placeholder="Ex.: HAB"><span class="note">Letras e números, usado nos TXT.</span></div>
+        <div><label for="ns-lei">Lei de criação (opcional)</label><input id="ns-lei" autocomplete="off" placeholder="Ex.: Lei Municipal nº 250/2026"></div>
+      </div>
+      <div class="toolbar"><button type="submit" class="btn primary">Criar secretaria</button><button type="button" class="btn" id="ns-cancel">Cancelar</button></div>
+      <div id="ns-msg" class="err" role="alert"></div>
+    </form>
+    <div id="ns-ok"></div>
     <div class="tbl-wrap"><table>
       <thead><tr><th>Órgão</th><th class="n">Previstos</th><th class="n">Ocupados</th><th class="n">Vagos</th><th class="n">Excedentes</th><th class="n">Sem corresp.</th><th class="hide-sm">Preenchimento</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -355,6 +374,7 @@ function overview(){
   </section>
   </div>`;
   main.querySelectorAll('[data-q]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); q.value = a.dataset.q; doSearch(); q.scrollIntoView({behavior:'smooth', block:'start'}); }));
+  wireNovaSec();
   main.querySelectorAll('tr.click').forEach(tr => {
     const go = () => location.hash = 'sec-' + tr.dataset.u;
     tr.addEventListener('click', e => { if (e.target.tagName !== 'A') go(); });
@@ -444,6 +464,59 @@ function metrics(){
   </section>`;
 }
 
+/* ---------- Nova secretaria ---------- */
+const NATUREZAS = ['Assessoria e apoio direto', 'Natureza instrumental', 'Natureza assistencial'];
+const STOPN = new Set(['secretaria','municipal','sec','de','da','do','das','dos','e','para','a','o']);
+function sugereCodigo(nome){
+  const w = norm(nome).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(x => x && !STOPN.has(x));
+  let base = (w[0] || 'sec').slice(0, 5), c = base, k = 2;
+  while (U[c] || simbolos().some(x => x.toLowerCase() === c)) c = base + k++;
+  return c.toUpperCase();
+}
+let codTocado = false;
+function wireNovaSec(){
+  const btn = document.getElementById('nova-sec-btn'), form = document.getElementById('nova-sec');
+  if (!btn) return;
+  const nome = document.getElementById('ns-nome'), cod = document.getElementById('ns-cod'), nat = document.getElementById('ns-nat');
+  const msg = document.getElementById('ns-msg');
+  btn.addEventListener('click', () => { form.hidden = !form.hidden; btn.setAttribute('aria-expanded', String(!form.hidden)); if (!form.hidden) { codTocado = false; nome.focus(); } });
+  document.getElementById('ns-cancel').addEventListener('click', () => { form.reset(); form.hidden = true; btn.setAttribute('aria-expanded', 'false'); msg.textContent = ''; document.getElementById('ns-outra-box').hidden = true; });
+  nat.addEventListener('change', () => { document.getElementById('ns-outra-box').hidden = nat.value !== '__outra'; if (nat.value === '__outra') document.getElementById('ns-outra').focus(); });
+  cod.addEventListener('input', () => { codTocado = true; });
+  nome.addEventListener('input', () => { if (!codTocado) cod.value = nome.value.trim() ? sugereCodigo(nome.value) : ''; });
+  form.addEventListener('submit', async e => {
+    e.preventDefault(); msg.textContent = '';
+    const nm = nome.value.trim().replace(/\s+/g, ' ');
+    const natureza = nat.value === '__outra' ? document.getElementById('ns-outra').value.trim() : nat.value;
+    const id = cod.value.trim().toLowerCase();
+    if (nm.length < 3) { msg.textContent = 'Informe o nome da secretaria.'; return; }
+    if (!natureza) { msg.textContent = 'Informe a natureza da secretaria.'; return; }
+    if (!/^[a-z][a-z0-9]{1,9}$/.test(id)) { msg.textContent = 'O código deve começar com letra e ter de 2 a 10 letras ou números, sem espaços, hífen ou acento.'; return; }
+    if (U[id]) { msg.textContent = `O código ${id.toUpperCase()} já é usado por ${U[id].nome}.`; return; }
+    if (simbolos().some(x => x.toLowerCase() === id)) { msg.textContent = `${id.toUpperCase()} é um símbolo de cargo; escolha outro código.`; return; }
+    const dup = D.unidades.find(u => norm(u.nome) === norm(nm));
+    if (dup) { msg.textContent = `Já existe uma secretaria com esse nome (${code(dup)}).`; return; }
+    const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR'), lei = document.getElementById('ns-lei').value.trim();
+    const u = {id, nome:nm, nome_lei: lei ? lei : `Criada no sistema em ${dt}`, grupo:natureza, cargos:[], criada:dt};
+    D.unidades.push(u);
+    (D.historico = D.historico || []).unshift({d:hoje.toISOString(), u:LOGIN, a:'Alteração', n:nm, det:`Nova secretaria criada · código ${id.toUpperCase()} · ${natureza}${lei ? ' · ' + lei : ''}`});
+    D.atualizado = hoje.toISOString(); D._rascunho = true;
+    lsSet(DRAFT_KEY, JSON.stringify(await encryptData()));
+    codTocado = false;
+    refreshAll();
+    document.getElementById('ns-ok').innerHTML = `<div class="callout"><b>${esc(nm)}</b> foi criada com o código <code>${id.toUpperCase()}</code>. Para incluir cargos, use o TXT de alterações (ex.: <code>${id.toUpperCase()}; NOVO; Secretário(a) Municipal; SEC; 1</code>). Para valer para todos, baixe o <b>dados.enc</b> e substitua no GitHub.</div>`;
+  });
+}
+async function excluirSecretaria(id){
+  const u = U[id]; if (!u || u.cargos.length || !u.criada) return;
+  D.unidades = D.unidades.filter(x => x !== u);
+  const hoje = new Date();
+  (D.historico = D.historico || []).unshift({d:hoje.toISOString(), u:LOGIN, a:'Alteração', n:u.nome, det:`Secretaria excluída · código ${code(u)}`});
+  D.atualizado = hoje.toISOString(); D._rascunho = true;
+  lsSet(DRAFT_KEY, JSON.stringify(await encryptData()));
+  location.hash = 'painel'; refreshAll();
+}
+
 /* ---------- Histórico ---------- */
 function historico(){
   const H = D.historico || [];
@@ -509,14 +582,16 @@ function detail(id){
     return `<tr><td><code>${code(c)}</code></td><td><div>${esc(c.nome)}</div>${c.nota?`<div class="note">${esc(c.nota)}</div>`:''}</td>
       <td>${esc(simbLabel(c))}</td><td class="n">${brl(c.valor)}${notaValor(c) ? ` <span class="info" title="${esc(notaValor(c))}">*</span>` : ''}</td><td class="n">${c.qtd}</td><td class="n">${c.oc.length}</td>
       <td><span class="chip ${cls}">${lab}</span></td><td><div class="occ">${occ}</div></td></tr>`;
-  }).join('') || `<tr><td colspan="8" class="note">Nenhum cargo neste filtro.</td></tr>`;
+  }).join('') || (u.cargos.length ? `<tr><td colspan="8" class="note">Nenhum cargo neste filtro.</td></tr>`
+    : `<tr><td colspan="8" class="note">Esta secretaria ainda não tem cargos. Crie pelo TXT de alterações, por exemplo: <code>${code(u)}; NOVO; Secretário(a) Municipal; SEC; 1</code></td></tr>`);
   const ne = u.ne.map(m => { const p = P[m];
     return `<div class="it"><div><b>${esc(p.n)}</b> · ${esc(p.c)}</div><div class="note">${esc(p.obs || '')} Matrícula ${esc(p.m)}.</div></div>`; }).join('');
   const faltam = u.cargos.filter(c => c.oc.length < c.qtd);
   const saude = '';
   main.innerHTML = `<div class="detail">
     <button class="back" id="back" type="button">← Voltar para todas as secretarias</button>
-    <div style="display:grid;gap:4px"><h2>${esc(u.nome)}</h2><div class="sub">Código: <code>${code(u)}</code> · Na lei: ${esc(u.nome_lei)}</div></div>
+    <div style="display:grid;gap:4px"><h2>${esc(u.nome)}</h2><div class="sub">Código: <code>${code(u)}</code> · ${esc(u.grupo)} · ${u.criada ? esc(u.nome_lei) : 'Na lei: ' + esc(u.nome_lei)}</div>
+      ${u.criada && !u.cargos.length ? `<div><button type="button" class="btn small" id="del-sec">Excluir esta secretaria</button> <span class="note">Só é possível enquanto não tiver cargos.</span></div>` : ''}</div>
     ${saude}
     <div class="tiles">
       <div class="tile"><span class="k">Previstos</span><span class="v">${u.previstos}</span></div>
@@ -541,6 +616,11 @@ function detail(id){
       <div class="list">${ne}</div></section>` : ''}
   </div>`;
   document.getElementById('back').addEventListener('click', () => { location.hash = 'painel'; });
+  const del = document.getElementById('del-sec');
+  if (del) del.addEventListener('click', () => {
+    if (del.dataset.conf) excluirSecretaria(id);
+    else { del.dataset.conf = '1'; del.textContent = 'Confirmar exclusão'; del.classList.add('danger'); }
+  });
   main.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => { filtro = b.dataset.f; detail(id); }));
 }
 
@@ -607,7 +687,7 @@ async function decryptData(obj){
 }
 function serializable(){
   return {fonte:D.fonte, atualizado:D.atualizado, historico:D.historico || [], valores:D.valores || {}, valoresData:D.valoresData || {}, simbolos:D.simbolos || {},
-    unidades:D.unidades.map(u => ({id:u.id, nome:u.nome, nome_lei:u.nome_lei, grupo:u.grupo,
+    unidades:D.unidades.map(u => ({id:u.id, nome:u.nome, nome_lei:u.nome_lei, grupo:u.grupo, ...(u.criada ? {criada:u.criada} : {}),
       cargos:u.cargos.map(c => { const o = {id:c.id, nome:c.nome, simbolo:c.simbolo, qtd:c.qtd}; if (c.nota) o.nota = c.nota; if (c.v != null) { o.v = c.v; o.vd = c.vd; } return o; })})),
     pessoas:D.pessoas};
 }
