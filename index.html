@@ -148,6 +148,22 @@ code{font-size:12.5px}
 .ns-grid label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
 .ns-grid select{width:100%}
 .btn.danger{background:var(--bad);border-color:var(--bad);color:var(--surface)}
+.gerir{border-color:var(--accent);display:grid;gap:14px}
+.acoes{display:flex;flex-wrap:wrap;gap:8px}
+.acoes button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:600;font-size:14px}
+.acoes button:hover{border-color:var(--accent)}
+.acoes button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.gform{display:grid;gap:12px}
+.g-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;align-items:start}
+.g-sub{display:contents}
+.g-sub[hidden]{display:none!important}
+.fld{display:grid;gap:4px}
+.fld label{font-size:13px;font-weight:600}
+.fld select{width:100%}
+.g-lista{display:grid;gap:6px;max-height:320px;overflow:auto}
+.g-op{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer;font-size:14px}
+.g-op input{width:auto;margin-top:3px}
+.callout.ok{border-left-color:var(--ok);background:var(--ok-soft)}
 details.users summary{cursor:pointer;font-weight:600}
 @media (max-width:640px){ h1{font-size:23px} .tile .v{font-size:24px} .hide-sm{display:none} }
 @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
@@ -171,7 +187,20 @@ details.users summary{cursor:pointer;font-weight:600}
   </section>
 
   <div id="app" hidden style="display:grid;gap:22px">
-  <div class="userbar"><span class="note">Conectado como <b id="who"></b></span><button type="button" class="btn small" id="logout">Sair</button></div>
+  <div class="userbar"><button type="button" class="btn primary" id="gerir-btn" aria-expanded="false" aria-controls="gerir">Gerenciar estrutura</button><span class="note">Conectado como <b id="who"></b></span><button type="button" class="btn small" id="logout">Sair</button></div>
+  <section class="card gerir" id="gerir" hidden aria-labelledby="h-gerir">
+    <div class="sectionhead"><h2 id="h-gerir">Gerenciar estrutura</h2><button type="button" class="btn small" id="gerir-fechar">Fechar</button></div>
+    <div class="acoes" role="tablist" aria-label="Escolha o que fazer">
+      <button type="button" role="tab" data-acao="secretaria">Criar secretaria</button>
+      <button type="button" role="tab" data-acao="cargo">Criar cargo</button>
+      <button type="button" role="tab" data-acao="valor">Alterar valor de cargo</button>
+      <button type="button" role="tab" data-acao="nomear">Nomear ou contratar</button>
+      <button type="button" role="tab" data-acao="exonerar">Exonerar</button>
+      <button type="button" role="tab" data-acao="renomear">Renomear secretaria</button>
+    </div>
+    <form id="g-form" class="gform" novalidate></form>
+    <div id="g-msg" role="status"></div>
+  </section>
   <section class="card search" aria-labelledby="lbl-busca">
     <label id="lbl-busca" for="q">Consultar servidor pelo nome ou matrícula</label>
     <input id="q" type="search" placeholder="Digite parte do nome ou a matrícula, ex.: maria jose ou 0065448" autocomplete="off">
@@ -258,12 +287,12 @@ function personCard(p){
   let lei = '';
   if (p.ex) return `<div class="res"><div class="nm">${esc(p.n)}</div><div><span class="chip c-nao">Exonerado em ${esc(p.ex)}</span></div>
     <div class="meta"><div><b>Último cargo:</b> ${esc(p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome)} – ${esc(U[p.u] ? U[p.u].nome : p.s)}</div><div>${esc(p.f)} · matrícula ${esc(p.m)}</div></div></div>`;
-  if (p.v === 'Comissionado'){
+  if (p.v === 'Comissionado' || (p.cl && C[p.cl])){
     const u = U[p.u];
     if (p.st === 'nao') lei = `<div><b>Na lei:</b> sem correspondência em ${esc(u.nome)}</div>`;
     else lei = `<div><b>Na lei:</b> ${esc(C[p.cl].nome)} (${esc(simbLabel(C[p.cl]))}) – <a href="#sec-${u.id}">${esc(u.nome)}</a></div><div><b>Vencimento do cargo:</b> ${brl(C[p.cl].valor)}${notaValor(C[p.cl]) ? ` <span class="mut">(${esc(notaValor(C[p.cl]))})</span>` : ''}</div>`;
   }
-  const chip = p.v === 'Comissionado' ? ` <span class="chip ${STCLS[p.st]}">${STLABEL[p.st]}</span>` : '';
+  const chip = p.v === 'Comissionado' || (p.cl && C[p.cl]) ? ` <span class="chip ${STCLS[p.st]}">${STLABEL[p.st]}</span>` : '';
   return `<div class="res">
     <div class="nm">${esc(p.n)}</div><div><span class="chip c-v">${esc(p.v)}</span>${chip}</div>
     <div class="meta">
@@ -329,21 +358,7 @@ function overview(){
   </section>
 
   <section class="card" style="display:grid;gap:12px" aria-labelledby="h-tab">
-    <div class="sectionhead"><h2 id="h-tab">Secretarias e órgãos</h2><div class="toolbar"><span class="sub">Clique numa linha para ver cargo por cargo</span><button type="button" class="btn primary" id="nova-sec-btn" aria-expanded="false" aria-controls="nova-sec">+ Nova secretaria</button></div></div>
-    <form id="nova-sec" class="novasec" hidden>
-      <h3>Nova secretaria</h3>
-      <div class="ns-grid">
-        <div><label for="ns-nome">Nome da secretaria</label><input id="ns-nome" required placeholder="Ex.: Secretaria Municipal de Habitação" autocomplete="off"></div>
-        <div><label for="ns-nat">Natureza</label>
-          <select id="ns-nat">${[...new Set([...NATUREZAS, ...D.unidades.map(u => u.grupo)])].map(g => `<option>${esc(g)}</option>`).join('')}<option value="__outra">Outra…</option></select></div>
-        <div id="ns-outra-box" hidden><label for="ns-outra">Qual natureza?</label><input id="ns-outra" autocomplete="off" placeholder="Ex.: Natureza econômica"></div>
-        <div><label for="ns-cod">Código</label><input id="ns-cod" maxlength="10" autocomplete="off" placeholder="Ex.: HAB"><span class="note">Letras e números, usado nos TXT.</span></div>
-        <div><label for="ns-lei">Lei de criação (opcional)</label><input id="ns-lei" autocomplete="off" placeholder="Ex.: Lei Municipal nº 250/2026"></div>
-      </div>
-      <div class="toolbar"><button type="submit" class="btn primary">Criar secretaria</button><button type="button" class="btn" id="ns-cancel">Cancelar</button></div>
-      <div id="ns-msg" class="err" role="alert"></div>
-    </form>
-    <div id="ns-ok"></div>
+    <div class="sectionhead"><h2 id="h-tab">Secretarias e órgãos</h2><div class="toolbar"><span class="sub">Clique numa linha para ver cargo por cargo</span><button type="button" class="btn primary" data-gerir="secretaria">+ Nova secretaria</button></div></div>
     <div class="tbl-wrap"><table>
       <thead><tr><th>Órgão</th><th class="n">Previstos</th><th class="n">Ocupados</th><th class="n">Vagos</th><th class="n">Excedentes</th><th class="n">Sem corresp.</th><th class="hide-sm">Preenchimento</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -374,7 +389,7 @@ function overview(){
   </section>
   </div>`;
   main.querySelectorAll('[data-q]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); q.value = a.dataset.q; doSearch(); q.scrollIntoView({behavior:'smooth', block:'start'}); }));
-  wireNovaSec();
+  main.querySelectorAll('[data-gerir]').forEach(b => b.addEventListener('click', () => abrirGerir(b.dataset.gerir)));
   main.querySelectorAll('tr.click').forEach(tr => {
     const go = () => location.hash = 'sec-' + tr.dataset.u;
     tr.addEventListener('click', e => { if (e.target.tagName !== 'A') go(); });
@@ -473,40 +488,6 @@ function sugereCodigo(nome){
   while (U[c] || simbolos().some(x => x.toLowerCase() === c)) c = base + k++;
   return c.toUpperCase();
 }
-let codTocado = false;
-function wireNovaSec(){
-  const btn = document.getElementById('nova-sec-btn'), form = document.getElementById('nova-sec');
-  if (!btn) return;
-  const nome = document.getElementById('ns-nome'), cod = document.getElementById('ns-cod'), nat = document.getElementById('ns-nat');
-  const msg = document.getElementById('ns-msg');
-  btn.addEventListener('click', () => { form.hidden = !form.hidden; btn.setAttribute('aria-expanded', String(!form.hidden)); if (!form.hidden) { codTocado = false; nome.focus(); } });
-  document.getElementById('ns-cancel').addEventListener('click', () => { form.reset(); form.hidden = true; btn.setAttribute('aria-expanded', 'false'); msg.textContent = ''; document.getElementById('ns-outra-box').hidden = true; });
-  nat.addEventListener('change', () => { document.getElementById('ns-outra-box').hidden = nat.value !== '__outra'; if (nat.value === '__outra') document.getElementById('ns-outra').focus(); });
-  cod.addEventListener('input', () => { codTocado = true; });
-  nome.addEventListener('input', () => { if (!codTocado) cod.value = nome.value.trim() ? sugereCodigo(nome.value) : ''; });
-  form.addEventListener('submit', async e => {
-    e.preventDefault(); msg.textContent = '';
-    const nm = nome.value.trim().replace(/\s+/g, ' ');
-    const natureza = nat.value === '__outra' ? document.getElementById('ns-outra').value.trim() : nat.value;
-    const id = cod.value.trim().toLowerCase();
-    if (nm.length < 3) { msg.textContent = 'Informe o nome da secretaria.'; return; }
-    if (!natureza) { msg.textContent = 'Informe a natureza da secretaria.'; return; }
-    if (!/^[a-z][a-z0-9]{1,9}$/.test(id)) { msg.textContent = 'O código deve começar com letra e ter de 2 a 10 letras ou números, sem espaços, hífen ou acento.'; return; }
-    if (U[id]) { msg.textContent = `O código ${id.toUpperCase()} já é usado por ${U[id].nome}.`; return; }
-    if (simbolos().some(x => x.toLowerCase() === id)) { msg.textContent = `${id.toUpperCase()} é um símbolo de cargo; escolha outro código.`; return; }
-    const dup = D.unidades.find(u => norm(u.nome) === norm(nm));
-    if (dup) { msg.textContent = `Já existe uma secretaria com esse nome (${code(dup)}).`; return; }
-    const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR'), lei = document.getElementById('ns-lei').value.trim();
-    const u = {id, nome:nm, nome_lei: lei ? lei : `Criada no sistema em ${dt}`, grupo:natureza, cargos:[], criada:dt};
-    D.unidades.push(u);
-    (D.historico = D.historico || []).unshift({d:hoje.toISOString(), u:LOGIN, a:'Alteração', n:nm, det:`Nova secretaria criada · código ${id.toUpperCase()} · ${natureza}${lei ? ' · ' + lei : ''}`});
-    D.atualizado = hoje.toISOString(); D._rascunho = true;
-    lsSet(DRAFT_KEY, JSON.stringify(await encryptData()));
-    codTocado = false;
-    refreshAll();
-    document.getElementById('ns-ok').innerHTML = `<div class="callout"><b>${esc(nm)}</b> foi criada com o código <code>${id.toUpperCase()}</code>. Para incluir cargos, use o TXT de alterações (ex.: <code>${id.toUpperCase()}; NOVO; Secretário(a) Municipal; SEC; 1</code>). Para valer para todos, baixe o <b>dados.enc</b> e substitua no GitHub.</div>`;
-  });
-}
 async function excluirSecretaria(id){
   const u = U[id]; if (!u || u.cargos.length || !u.criada) return;
   D.unidades = D.unidades.filter(x => x !== u);
@@ -517,13 +498,198 @@ async function excluirSecretaria(id){
   location.hash = 'painel'; refreshAll();
 }
 
+/* ---------- Painel Gerenciar estrutura ---------- */
+let ACAO = null;
+const unitOpts = (sel) => D.unidades.slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(u => `<option value="${u.id}" ${u.id === sel ? 'selected' : ''}>${esc(u.nome)} (${code(u)})</option>`).join('');
+const cargoOptsHtml = (uid, filtro) => (U[uid] ? U[uid].cargos : []).filter(filtro || (() => true)).map(c =>
+  `<option value="${c.id}">${esc(c.nome)}${c.tipo === 'Contrato' ? ' [contrato]' : ''} – ${code(c)} · ${brl(c.valor)} · ${c.vagas} vaga${c.vagas !== 1 ? 's' : ''}</option>`).join('');
+const fld = (id, label, input, hint = '') => `<div class="fld"><label for="${id}">${label}</label>${input}${hint ? `<span class="note">${hint}</span>` : ''}</div>`;
+function abrirGerir(acao){
+  const box = document.getElementById('gerir');
+  box.hidden = false; document.getElementById('gerir-btn').setAttribute('aria-expanded', 'true');
+  if (acao) selAcao(acao); else if (!ACAO) selAcao('nomear');
+  box.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function fecharGerir(){ document.getElementById('gerir').hidden = true; document.getElementById('gerir-btn').setAttribute('aria-expanded', 'false'); }
+function selAcao(a){
+  ACAO = a;
+  document.querySelectorAll('[data-acao]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.acao === a)));
+  document.getElementById('g-msg').innerHTML = '';
+  renderGForm();
+}
+function gErro(t){ document.getElementById('g-msg').innerHTML = `<div class="callout bad">${esc(t)}</div>`; }
+async function gOk(n, t){
+  if (!n) { gErro('Nada foi alterado.'); return; }
+  renderGForm();
+  document.getElementById('g-msg').innerHTML = `<div class="callout ok">${t} Para valer para todos, baixe o <b>dados.enc</b> (na área de atualização) e substitua no GitHub.</div>`;
+}
+function renderGForm(){
+  const f = document.getElementById('g-form'), uid0 = (location.hash.startsWith('#sec-') && U[location.hash.slice(5)]) ? location.hash.slice(5) : '';
+  const btn = t => `<div class="toolbar"><button type="submit" class="btn primary">${t}</button></div>`;
+  const syms = simbolos().map(sy => `<option value="${esc(sy)}">${esc(sy)} – ${brl(symVal(sy))}</option>`).join('');
+  if (ACAO === 'secretaria') f.innerHTML = `<div class="g-grid">
+      ${fld('g-nome', 'Nome da secretaria', '<input id="g-nome" autocomplete="off" placeholder="Ex.: Secretaria Municipal de Habitação">')}
+      ${fld('g-nat', 'Natureza', `<select id="g-nat">${[...new Set([...NATUREZAS, ...D.unidades.map(u => u.grupo)])].map(g => `<option>${esc(g)}</option>`).join('')}<option value="__outra">Outra…</option></select>`)}
+      <div id="g-outra-box" hidden>${fld('g-outra', 'Qual natureza?', '<input id="g-outra" autocomplete="off" placeholder="Ex.: Natureza econômica">')}</div>
+      ${fld('g-cod', 'Código', '<input id="g-cod" maxlength="10" autocomplete="off" placeholder="Ex.: HAB">', 'Sugerido pelo nome; usado nos TXT.')}
+      ${fld('g-lei', 'Lei de criação (opcional)', '<input id="g-lei" autocomplete="off" placeholder="Ex.: Lei Municipal nº 250/2026">')}
+    </div>${btn('Criar secretaria')}`;
+  else if (ACAO === 'cargo') f.innerHTML = `<div class="g-grid">
+      ${fld('g-tipo', 'Tipo do cargo', '<select id="g-tipo"><option value="Comissionado">Comissionado</option><option value="Contrato">Contrato</option></select>')}
+      ${fld('g-uni', 'Secretaria', `<select id="g-uni">${unitOpts(uid0)}</select>`)}
+      ${fld('g-nome', 'Nome do cargo', '<input id="g-nome" autocomplete="off" placeholder="Ex.: Coordenação de Tesouraria">')}
+      ${fld('g-sym', 'Símbolo', `<select id="g-sym"><option value="">Sem símbolo (valor próprio)</option>${syms}<option value="__novo">Novo símbolo…</option></select>`)}
+      <div id="g-novosym" hidden class="g-sub">${fld('g-symcod', 'Código do símbolo novo', '<input id="g-symcod" maxlength="12" autocomplete="off" placeholder="Ex.: CC-10">')}${fld('g-symlei', 'Lei do símbolo (opcional)', '<input id="g-symlei" autocomplete="off" placeholder="Ex.: Lei 189/2024">')}</div>
+      ${fld('g-valor', 'Valor (R$)', '<input id="g-valor" inputmode="decimal" autocomplete="off" placeholder="Ex.: 2.600,00">', 'Obrigatório sem símbolo ou com símbolo novo. Com símbolo existente, deixe em branco para usar o valor dele.')}
+      ${fld('g-qtd', 'Quantidade de vagas', '<input id="g-qtd" type="number" min="1" max="999" value="1">')}
+    </div>${btn('Criar cargo')}`;
+  else if (ACAO === 'valor') f.innerHTML = `<div class="g-grid">
+      ${fld('g-modo', 'Alterar o valor de', '<select id="g-modo"><option value="cargo">Um cargo</option><option value="sym">Todos os cargos de um símbolo</option></select>')}
+      <div id="g-porcargo" class="g-sub">${fld('g-uni', 'Secretaria', `<select id="g-uni">${unitOpts(uid0)}</select>`)}${fld('g-cargo', 'Cargo', '<select id="g-cargo"></select>')}</div>
+      <div id="g-porsym" hidden>${fld('g-symsel', 'Símbolo', `<select id="g-symsel">${syms}</select>`)}</div>
+      ${fld('g-valor', 'Novo valor (R$)', '<input id="g-valor" inputmode="decimal" autocomplete="off" placeholder="Ex.: 2.700,00 ou salário mínimo">')}
+    </div>${btn('Alterar valor')}`;
+  else if (ACAO === 'nomear') f.innerHTML = `<div class="g-grid">
+      ${fld('g-mat', 'Matrícula', '<input id="g-mat" autocomplete="off" placeholder="Ex.: 0065700">', 'Se a matrícula já existir, o nome é preenchido sozinho.')}
+      ${fld('g-nome', 'Nome do servidor', '<input id="g-nome" autocomplete="off">')}
+      ${fld('g-uni', 'Secretaria', `<select id="g-uni">${unitOpts(uid0)}</select>`)}
+      ${fld('g-cargo', 'Cargo', '<select id="g-cargo"></select>', 'O vínculo segue o tipo do cargo: comissionado ou contrato.')}
+    </div><div id="g-info" class="note"></div>${btn('Nomear / contratar')}`;
+  else if (ACAO === 'exonerar') f.innerHTML = `<div class="g-grid">
+      ${fld('g-busca', 'Nome ou matrícula', '<input id="g-busca" type="search" autocomplete="off" placeholder="Digite para buscar">')}
+    </div><div id="g-lista" class="g-lista"></div>${btn('Exonerar selecionado')}`;
+  else if (ACAO === 'renomear') f.innerHTML = `<div class="g-grid">
+      ${fld('g-uni', 'Secretaria', `<select id="g-uni">${unitOpts(uid0)}</select>`)}
+      ${fld('g-nome', 'Novo nome', '<input id="g-nome" autocomplete="off">')}
+    </div>${btn('Renomear secretaria')}`;
+  wireGForm();
+}
+function wireGForm(){
+  const $ = id => document.getElementById(id);
+  const fillCargos = () => { if ($('g-cargo')) $('g-cargo').innerHTML = cargoOptsHtml($('g-uni').value) || '<option value="">Esta secretaria não tem cargos</option>'; nomInfo(); };
+  const nomInfo = () => {
+    if (ACAO !== 'nomear') return;
+    const m = $('g-mat').value.trim(), pm = m ? P[padMat(m)] : null, c = C[$('g-cargo').value], info = $('g-info');
+    if (pm) $('g-nome').value = pm.n;
+    $('g-nome').readOnly = !!pm;
+    let t = '';
+    if (m && !pm) t = `Matrícula nova: o servidor será cadastrado.`;
+    if (pm && pm.ex) t = `${pm.n} foi desligado em ${pm.ex}; será reintegrado.`;
+    else if (pm && c && pm.v === (c.tipo === 'Contrato' ? 'Contratado' : 'Comissionado') && pm.cl) t = `${pm.n} já ocupa ${C[pm.cl] ? C[pm.cl].nome : pm.c} (${U[pm.u] ? U[pm.u].nome : pm.s}); será remanejado para o cargo escolhido.`;
+    else if (pm && c) t = `${pm.n} é ${pm.v.toLowerCase()}; será criado um vínculo ${c.tipo === 'Contrato' ? 'de contrato' : 'comissionado'} separado.`;
+    if (c && c.vagas === 0) t += ` Atenção: este cargo não tem vaga livre (${c.oc.length} de ${c.qtd} ocupadas).`;
+    info.textContent = t.trim();
+  };
+  if ($('g-uni') && $('g-cargo')) { $('g-uni').addEventListener('change', fillCargos); $('g-cargo').addEventListener('change', nomInfo); fillCargos(); }
+  if ($('g-mat')) $('g-mat').addEventListener('input', nomInfo);
+  if ($('g-nat')) $('g-nat').addEventListener('change', () => { $('g-outra-box').hidden = $('g-nat').value !== '__outra'; });
+  if (ACAO === 'secretaria') { let tocado = false; $('g-cod').addEventListener('input', () => tocado = true); $('g-nome').addEventListener('input', () => { if (!tocado) $('g-cod').value = $('g-nome').value.trim() ? sugereCodigo($('g-nome').value) : ''; }); }
+  if (ACAO === 'cargo') {
+    const upd = () => { $('g-novosym').hidden = $('g-sym').value !== '__novo'; };
+    $('g-sym').addEventListener('change', upd);
+    $('g-tipo').addEventListener('change', () => { if ($('g-tipo').value === 'Contrato') { $('g-sym').value = ''; upd(); } });
+  }
+  if (ACAO === 'valor') $('g-modo').addEventListener('change', () => { const c = $('g-modo').value === 'cargo'; $('g-porcargo').hidden = !c; $('g-porsym').hidden = c; });
+  if (ACAO === 'exonerar') {
+    const lista = () => {
+      const t = $('g-busca').value.trim(), nt = norm(t).split(/\s+/).filter(Boolean);
+      const ps = !t ? [] : D.pessoas.filter(p => !p.ex && (p.v === 'Comissionado' || p.v === 'Contratado') &&
+        (/^\d+$/.test(t) ? p.m.includes(t) : nt.every(w => norm(p.n).includes(w)))).slice(0, 30);
+      $('g-lista').innerHTML = !t ? '<span class="note">Digite parte do nome ou a matrícula. Aparecem só comissionados e contratados ativos.</span>'
+        : ps.length ? ps.map((p, i) => `<label class="g-op"><input type="radio" name="g-pes" value="${esc(p.m)}" ${i === 0 ? 'checked' : ''}> <span><b>${esc(p.n)}</b> · ${esc(p.v)} · mat. ${esc(p.m)}<br><span class="note">${esc(p.cl && C[p.cl] ? C[p.cl].nome : p.c)} – ${esc(U[p.u] ? U[p.u].nome : p.s)}</span></span></label>`).join('')
+        : '<span class="note">Ninguém encontrado entre comissionados e contratados ativos.</span>';
+    };
+    $('g-busca').addEventListener('input', lista); lista();
+  }
+}
+async function submitGForm(e){
+  e.preventDefault();
+  const $ = id => document.getElementById(id), v = id => ($(id) ? $(id).value.trim() : '');
+  document.getElementById('g-msg').innerHTML = '';
+  if (ACAO === 'secretaria') {
+    const nm = v('g-nome').replace(/\s+/g, ' '), natureza = v('g-nat') === '__outra' ? v('g-outra') : v('g-nat'), id = v('g-cod').toLowerCase(), lei = v('g-lei');
+    if (nm.length < 3) return gErro('Informe o nome da secretaria.');
+    if (!natureza) return gErro('Informe a natureza da secretaria.');
+    if (!/^[a-z][a-z0-9]{1,9}$/.test(id)) return gErro('O código deve começar com letra e ter de 2 a 10 letras ou números, sem espaços, hífen ou acento.');
+    if (U[id]) return gErro(`O código ${id.toUpperCase()} já é usado por ${U[id].nome}.`);
+    if (simbolos().some(x => x.toLowerCase() === id)) return gErro(`${id.toUpperCase()} é um símbolo de cargo; escolha outro código.`);
+    const dup = D.unidades.find(u => norm(u.nome) === norm(nm)); if (dup) return gErro(`Já existe uma secretaria com esse nome (${code(dup)}).`);
+    const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR');
+    D.unidades.push({id, nome:nm, nome_lei: lei || `Criada no sistema em ${dt}`, grupo:natureza, cargos:[], criada:dt});
+    (D.historico = D.historico || []).unshift({d:hoje.toISOString(), u:LOGIN, a:'Alteração', n:nm, det:`Nova secretaria criada · código ${id.toUpperCase()} · ${natureza}${lei ? ' · ' + lei : ''}`});
+    D.atualizado = hoje.toISOString(); D._rascunho = true; lsSet(DRAFT_KEY, JSON.stringify(await encryptData())); refreshAll();
+    return gOk(1, `<b>${esc(nm)}</b> foi criada com o código <code>${id.toUpperCase()}</code>. Agora use “Criar cargo” para incluir os cargos dela.`);
+  }
+  if (ACAO === 'cargo') {
+    const u = U[v('g-uni')], nm = v('g-nome'), tipo = v('g-tipo'), qtd = parseInt(v('g-qtd'), 10);
+    if (!u) return gErro('Escolha a secretaria.');
+    if (nm.length < 3) return gErro('Informe o nome do cargo.');
+    if (u.cargos.some(c => norm(c.nome) === norm(nm))) return gErro(`Já existe "${nm}" em ${u.nome}. Para mais vagas, use o TXT de alterações (QUANTIDADE).`);
+    if (!(qtd >= 1)) return gErro('Informe a quantidade de vagas.');
+    let sym = v('g-sym'), novoSym = null; const val = v('g-valor') ? parseValor(v('g-valor')) : null;
+    if (v('g-valor') && val == null) return gErro(`Valor "${v('g-valor')}" inválido.`);
+    if (sym === '__novo') {
+      sym = v('g-symcod').toUpperCase();
+      if (!sym || isValTxt(sym)) return gErro('Informe o código do símbolo novo (ex.: CC-10).');
+      if (simbolos().some(x => x.toUpperCase() === sym)) return gErro(`O símbolo ${sym} já existe; escolha-o na lista.`);
+      if (val == null) return gErro(`Informe o valor do símbolo novo ${sym}.`);
+      novoSym = {sym, v:val, obs:v('g-symlei')};
+    } else if (!sym && val == null) return gErro('Sem símbolo, o valor do cargo é obrigatório.');
+    const vCargo = novoSym ? null : (val != null && (!sym || val !== symVal(sym)) ? val : null);
+    const n = await commit([{alt:true, tipo:'novo', alvo:u.id, nome:nm, novo:{nome:nm, simbolo:sym, v:vCargo, qtd, novoSym, tipo, obs:''},
+      desc:`Novo cargo ${tipo === 'Contrato' ? 'de contrato' : 'comissionado'} em ${u.nome}: ${nm} · ${sym ? sym + ' · ' : ''}${fmtV(vCargo != null ? vCargo : novoSym ? val : symVal(sym))} · ${qtd} vaga${qtd > 1 ? 's' : ''}${novoSym ? ' · símbolo novo ' + sym : ''}`}], 'pelo sistema');
+    const c = u.cargos[u.cargos.length - 1];
+    return gOk(n, `Cargo <b>${esc(nm)}</b> criado em ${esc(u.nome)} com o código <code>${code(c)}</code>.`);
+  }
+  if (ACAO === 'valor') {
+    const val = parseValor(v('g-valor')); if (val == null) return gErro('Informe um valor válido (ex.: 2.700,00).');
+    if (v('g-modo') === 'sym') {
+      const sym = v('g-symsel');
+      const n = await commit([{alt:true, tipo:'sym', alvo:sym, novo:val, nome:`Símbolo ${sym}`, desc:`Valor de todos os cargos ${sym}: ${brl(symVal(sym))} → ${fmtV(val)}`}], 'pelo sistema');
+      return gOk(n, `Valor do símbolo <b>${esc(sym)}</b> alterado para ${fmtV(val)}.`);
+    }
+    const c = C[v('g-cargo')]; if (!c) return gErro('Escolha o cargo.');
+    const n = await commit([{alt:true, tipo:'cargo', campo:'valor', alvo:c.id, novo:val, nome:c.nome, desc:`Valor: ${brl(c.valor)} → ${fmtV(val)}`}], 'pelo sistema');
+    return gOk(n, `Valor de <b>${esc(c.nome)}</b> alterado para ${fmtV(val)}.`);
+  }
+  if (ACAO === 'nomear') {
+    const raw = v('g-mat'), mat = raw ? padMat(raw) : null, pm = mat ? P[mat] : null, c = C[v('g-cargo')], nome = pm ? pm.n : v('g-nome');
+    if (raw && !isMat(raw)) return gErro('Matrícula inválida: use só números.');
+    if (!c) return gErro('Escolha o cargo.');
+    if (!nome) return gErro('Informe o nome do servidor.');
+    const tv = c.tipo === 'Contrato' ? 'Contratado' : 'Comissionado';
+    const it = {sit:'Nomeado', sel:c.id, mat, nome};
+    if (pm && !pm.ex && pm.v === tv) it.mover = pm.m;
+    else if (pm && !pm.ex) it.de = pm.m;
+    if (!mat) { const ex = findPessoas(nome, false).filter(p => p.v === tv && !p.ex); if (ex.length === 1) it.mover = ex[0].m; }
+    if (it.mover && P[it.mover].cl === c.id && P[it.mover].st !== 'nao') return gErro(`${nome} já ocupa este cargo.`);
+    const n = await commit([it], 'pelo sistema');
+    return gOk(n, `<b>${esc(nome)}</b> ${it.mover ? 'remanejado(a) para' : tv === 'Contratado' ? 'contratado(a) como' : 'nomeado(a) como'} ${esc(c.nome)} – ${esc(unitOf(c).nome)}.`);
+  }
+  if (ACAO === 'exonerar') {
+    const sel = document.querySelector('input[name="g-pes"]:checked'); if (!sel) return gErro('Busque e selecione o servidor.');
+    const p = P[sel.value], btn = e.submitter || document.querySelector('#g-form button[type=submit]');
+    if (!btn.dataset.conf || btn.dataset.conf !== p.m) { btn.dataset.conf = p.m; btn.textContent = `Confirmar exoneração de ${p.n}`; btn.classList.add('danger'); return; }
+    const n = await commit([{sit:'Exonerado', sel:p.m}], 'pelo sistema');
+    return gOk(n, `<b>${esc(p.n)}</b> ${p.v === 'Contratado' ? 'teve o contrato encerrado' : 'foi exonerado(a)'}.`);
+  }
+  if (ACAO === 'renomear') {
+    const u = U[v('g-uni')], nm = v('g-nome').replace(/\s+/g, ' ');
+    if (!u) return gErro('Escolha a secretaria.');
+    if (nm.length < 3) return gErro('Informe o novo nome.');
+    if (norm(nm) === norm(u.nome)) return gErro('O nome novo é igual ao atual.');
+    const n = await commit([{alt:true, tipo:'unid', alvo:u.id, novo:nm, nome:u.nome, desc:`Nome da secretaria: ${u.nome} → ${nm}`}], 'pelo sistema');
+    return gOk(n, `Secretaria renomeada para <b>${esc(nm)}</b>.`);
+  }
+}
+
 /* ---------- Histórico ---------- */
 function historico(){
   const H = D.historico || [];
   if (!H.length) return `<section class="card" style="display:grid;gap:8px"><h2>Histórico de movimentações</h2><p class="note" style="margin:0">Nenhuma nomeação ou exoneração registrada ainda. Use “Atualizar por arquivo TXT” acima.</p></section>`;
   return `<section class="card" style="display:grid;gap:12px"><div class="sectionhead"><h2>Histórico de movimentações</h2><span class="sub">${H.length} registro${H.length>1?'s':''}</span></div>
     <div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Ação</th><th>Servidor</th><th>Cargo e órgão</th><th>Usuário</th></tr></thead>
-    <tbody>${H.slice(0,200).map(h => `<tr><td class="n">${new Date(h.d).toLocaleString('pt-BR')}</td><td><span class="chip ${h.a==='Exoneração'?'c-exc':h.a==='Remanejamento'?'c-prov':'c-ok'}">${esc(h.a)}</span></td><td>${esc(h.n)}</td><td>${esc(h.det)}</td><td>${esc(h.u)}</td></tr>`).join('')}</tbody></table></div></section>`;
+    <tbody>${H.slice(0,200).map(h => `<tr><td class="n">${new Date(h.d).toLocaleString('pt-BR')}</td><td><span class="chip ${h.a==='Exoneração'||h.a==='Fim de contrato'?'c-exc':h.a==='Remanejamento'?'c-prov':h.a==='Alteração'?'c-v':'c-ok'}">${esc(h.a)}</span></td><td>${esc(h.n)}</td><td>${esc(h.det)}</td><td>${esc(h.u)}</td></tr>`).join('')}</tbody></table></div></section>`;
 }
 
 /* ---------- Saúde ---------- */
@@ -579,7 +745,7 @@ function detail(id){
     const occ = c.oc.length ? c.oc.map(m => { const p = P[m];
         return `<div class="o"><span>${esc(p.n)}</span><span class="mut">· ${esc(p.c)}</span>${p.st==='provavel'?' <span class="chip c-prov">provável</span>':''}</div>`; }).join('')
       : '<span class="mut">ninguém</span>';
-    return `<tr><td><code>${code(c)}</code></td><td><div>${esc(c.nome)}</div>${c.nota?`<div class="note">${esc(c.nota)}</div>`:''}</td>
+    return `<tr><td><code>${code(c)}</code></td><td><div>${esc(c.nome)}${c.tipo === 'Contrato' ? ' <span class="chip c-v">Contrato</span>' : ''}</div>${c.nota?`<div class="note">${esc(c.nota)}</div>`:''}</td>
       <td>${esc(simbLabel(c))}</td><td class="n">${brl(c.valor)}${notaValor(c) ? ` <span class="info" title="${esc(notaValor(c))}">*</span>` : ''}</td><td class="n">${c.qtd}</td><td class="n">${c.oc.length}</td>
       <td><span class="chip ${cls}">${lab}</span></td><td><div class="occ">${occ}</div></td></tr>`;
   }).join('') || (u.cargos.length ? `<tr><td colspan="8" class="note">Nenhum cargo neste filtro.</td></tr>`
@@ -688,7 +854,7 @@ async function decryptData(obj){
 function serializable(){
   return {fonte:D.fonte, atualizado:D.atualizado, historico:D.historico || [], valores:D.valores || {}, valoresData:D.valoresData || {}, simbolos:D.simbolos || {},
     unidades:D.unidades.map(u => ({id:u.id, nome:u.nome, nome_lei:u.nome_lei, grupo:u.grupo, ...(u.criada ? {criada:u.criada} : {}),
-      cargos:u.cargos.map(c => { const o = {id:c.id, nome:c.nome, simbolo:c.simbolo, qtd:c.qtd}; if (c.nota) o.nota = c.nota; if (c.v != null) { o.v = c.v; o.vd = c.vd; } return o; })})),
+      cargos:u.cargos.map(c => { const o = {id:c.id, nome:c.nome, simbolo:c.simbolo, qtd:c.qtd}; if (c.nota) o.nota = c.nota; if (c.v != null) { o.v = c.v; o.vd = c.vd; } if (c.tipo) o.tipo = c.tipo; return o; })})),
     pessoas:D.pessoas};
 }
 async function encryptData(){
@@ -711,9 +877,8 @@ function recompute(){
   D.unidades.forEach(u => { u.ne = []; u.cargos.forEach(c => { c.oc = []; C[c.id] = c; }); });
   const act = D.pessoas.filter(p => !p.ex);
   act.forEach(p => {
-    if (p.v !== 'Comissionado') return;
-    if (p.st === 'nao') { if (U[p.u]) U[p.u].ne.push(p.m); }
-    else if (C[p.cl]) C[p.cl].oc.push(p.m);
+    if (p.st !== 'nao' && p.cl && C[p.cl]) { C[p.cl].oc.push(p.m); return; }
+    if (p.v === 'Comissionado' && p.st === 'nao' && U[p.u]) U[p.u].ne.push(p.m);
   });
   D.unidades.forEach(u => {
     u.cargos.forEach(c => { const n = c.oc.length; c.ocup = Math.min(n, c.qtd); c.vagas = Math.max(c.qtd - n, 0); c.exced = Math.max(n - c.qtd, 0); });
@@ -987,14 +1152,15 @@ function parseAlt(text){
   });
   return out;
 }
-function applyAlt(x, dt, hoje, hist){
+function applyAlt(x, dt, hoje, hist, origem = 'TXT'){
   let det = x.desc;
   if (x.tipo === 'simnovo') {
     D.simbolos = D.simbolos || {}; D.simbolos[x.alvo] = {v:x.novo.v, d:dt, obs:x.novo.obs};
   } else if (x.tipo === 'novo') {
     if (x.novo.novoSym && !(D.simbolos || {})[x.novo.novoSym.sym]) { D.simbolos = D.simbolos || {}; D.simbolos[x.novo.novoSym.sym] = {v:x.novo.novoSym.v, d:dt, obs:x.novo.novoSym.obs}; }
     const u = U[x.alvo]; let k = u.cargos.length; while (C[`${u.id}-${k}`]) k++;
-    const c = {id:`${u.id}-${k}`, nome:x.novo.nome, simbolo:x.novo.simbolo, qtd:x.novo.qtd, nota:`Cargo criado por TXT em ${dt}${x.novo.obs ? ' – ' + x.novo.obs : ''}.`, oc:[]};
+    const c = {id:`${u.id}-${k}`, nome:x.novo.nome, simbolo:x.novo.simbolo, qtd:x.novo.qtd, nota:`Cargo criado ${origem === 'pelo sistema' ? 'pelo sistema' : 'por TXT'} em ${dt}${x.novo.obs ? ' – ' + x.novo.obs : ''}.`, oc:[]};
+    if (x.novo.tipo === 'Contrato') c.tipo = 'Contrato';
     if (x.novo.v != null) { c.v = x.novo.v; c.vd = dt; }
     u.cargos.push(c); C[c.id] = c; det = x.desc + ` · código ${code(c)}`;
   } else if (x.tipo === 'sym') { D.valores = D.valores || {}; D.valoresData = D.valoresData || {}; D.valores[x.alvo] = x.novo; D.valoresData[x.alvo] = dt; }
@@ -1031,37 +1197,46 @@ function renderPreview(){
   document.getElementById('txt-apply').addEventListener('click', applyPreview);
   document.getElementById('txt-cancel').addEventListener('click', () => { PREVIEW = []; renderPreview(); document.getElementById('txt-file').value = ''; document.getElementById('txt-reman').value = ''; document.getElementById('txt-alt').value = ''; });
 }
-async function applyPreview(){
+function applyItem(x, dt, hoje, hist, k, origem){
+  if (x.alt) { applyAlt(x, dt, hoje, hist, origem); return true; }
+  if (x.sit === 'Exonerado') {
+    const p = P[x.sel]; p.ex = dt;
+    const enc = p.v === 'Contratado';
+    p.obs = `${enc ? 'Contrato encerrado' : 'Exonerado'} em ${dt} (${origem}).`;
+    hist.unshift({d:hoje.toISOString(), u:LOGIN, a:enc ? 'Fim de contrato' : 'Exoneração', n:p.n, det:`${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} – ${U[p.u] ? U[p.u].nome : p.s}`});
+    return true;
+  }
+  const c = C[x.sel], u = unitOf(c);
+  const tv = c.tipo === 'Contrato' ? 'Contratado' : 'Comissionado';
+  const mv = x.sit === 'Remanejado' ? x.psel : x.mover;
+  if (mv && P[mv].cl === c.id && P[mv].st !== 'nao') return false;   // já está nesse cargo
+  let p = mv ? P[mv] : null, acao = tv === 'Contratado' ? 'Contratação' : 'Nomeação';
+  if (p) { acao = 'Remanejamento'; p.obs = `Remanejado em ${dt}; antes: ${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} (${U[p.u] ? U[p.u].nome : p.s}).`; }
+  else {
+    const suf = tv === 'Contratado' ? '-T' : '-C';
+    let m = x.mat && !P[x.mat] ? x.mat : (x.mat ? x.mat + suf : 'N' + Date.now().toString(36).toUpperCase() + (k || 0));
+    while (P[m] && !P[m].ex) m += suf;
+    if (P[m]) { p = P[m]; delete p.ex; } else { p = {f:'Atualização', m, n:x.nome.toUpperCase(), adm:dt}; D.pessoas.push(p); P[m] = p; }
+    p.adm = dt; p.v = tv;
+    p.obs = x.de ? `${acao} em ${dt}; também tem o vínculo ${P[x.de].v.toLowerCase()} de matrícula ${x.de}.` : `${acao} em ${dt} (${origem}).`;
+  }
+  Object.assign(p, {c:c.nome.toUpperCase(), l:origem === 'pelo sistema' ? 'Atualização pelo sistema' : 'Atualização por TXT', s:u.nome, u:u.id, cl:c.id, st:'exata'});
+  hist.unshift({d:hoje.toISOString(), u:LOGIN, a:acao, n:p.n, det:`${c.nome} – ${u.nome}`});
+  return true;
+}
+async function commit(items, origem){
   const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR'), hist = D.historico = D.historico || [];
   let n = 0;
-  PREVIEW.filter(x => !x.erro).forEach(x => {
-    if (x.alt) { applyAlt(x, dt, hoje, hist); n++; return; }
-    if (x.sit === 'Exonerado') {
-      const p = P[x.sel]; p.ex = dt; p.obs = `Exonerado em ${dt} (atualização por TXT).`;
-      hist.unshift({d:hoje.toISOString(), u:LOGIN, a:'Exoneração', n:p.n, det:`${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} – ${U[p.u] ? U[p.u].nome : p.s}`});
-    } else {
-      const c = C[x.sel], u = D.unidades.find(un => un.cargos.includes(c));
-      const mv = x.sit === 'Remanejado' ? x.psel : x.mover;
-      if (mv && P[mv].cl === c.id && P[mv].st !== 'nao') return;   // já está nesse cargo
-      let p = mv ? P[mv] : null, acao = 'Nomeação';
-      if (p) { acao = 'Remanejamento'; p.obs = `Remanejado em ${dt}; antes: ${p.st === 'nao' || !C[p.cl] ? p.c : C[p.cl].nome} (${U[p.u] ? U[p.u].nome : p.s}).`; }
-      else {
-        let m = x.mat && !P[x.mat] ? x.mat : (x.mat ? x.mat + '-C' : 'N' + Date.now().toString(36).toUpperCase() + n);
-        while (P[m] && !P[m].ex) m += '-C';
-        if (P[m]) { p = P[m]; delete p.ex; } else { p = {f:'Atualização', m, n:x.nome.toUpperCase(), adm:dt, v:'Comissionado'}; D.pessoas.push(p); P[m] = p; }
-        p.adm = dt;
-        p.obs = x.de ? `Nomeado em comissão em ${dt}; também tem o vínculo ${P[x.de].v.toLowerCase()} de matrícula ${x.de}.` : `Nomeado em ${dt} (atualização por TXT).`;
-      }
-      Object.assign(p, {c:c.nome.toUpperCase(), l:'Atualização por TXT', s:u.nome, u:u.id, cl:c.id, st:'exata'});
-      hist.unshift({d:hoje.toISOString(), u:LOGIN, a:acao, n:p.n, det:`${c.nome} – ${u.nome}`});
-    }
-    n++;
-  });
+  items.forEach((x, k) => { if (applyItem(x, dt, hoje, hist, k, origem)) n++; });
   D.pessoas.sort((a, b) => a.n.localeCompare(b.n, 'pt-BR'));
   D.atualizado = hoje.toISOString(); D._rascunho = true;
-  const blob = await encryptData(); lsSet(DRAFT_KEY, JSON.stringify(blob));
-  PREVIEW = []; document.getElementById('txt-file').value = ''; document.getElementById('txt-reman').value = ''; document.getElementById('txt-alt').value = '';
+  lsSet(DRAFT_KEY, JSON.stringify(await encryptData()));
   refreshAll();
+  return n;
+}
+async function applyPreview(){
+  const n = await commit(PREVIEW.filter(x => !x.erro), 'atualização por TXT');
+  PREVIEW = []; document.getElementById('txt-file').value = ''; document.getElementById('txt-reman').value = ''; document.getElementById('txt-alt').value = '';
   document.getElementById('txt-preview').innerHTML = `<div class="callout">${n} alteraç${n === 1 ? 'ão aplicada' : 'ões aplicadas'}. Para valer para todos, baixe o <b>dados.enc</b> e substitua o arquivo no GitHub.</div>`;
 }
 
@@ -1116,6 +1291,10 @@ async function saveUser(e){
   document.getElementById('dl-users').addEventListener('click', ev => { ev.preventDefault(); download('usuarios.json', JSON.stringify(USERS, null, 1)); });
 }
 document.getElementById('login-form').addEventListener('submit', doLogin);
+document.getElementById('gerir-btn').addEventListener('click', () => { const g = document.getElementById('gerir'); g.hidden ? abrirGerir() : fecharGerir(); });
+document.getElementById('gerir-fechar').addEventListener('click', fecharGerir);
+document.querySelectorAll('[data-acao]').forEach(b => b.addEventListener('click', () => selAcao(b.dataset.acao)));
+document.getElementById('g-form').addEventListener('submit', submitGForm);
 document.getElementById('codes-q').addEventListener('input', renderCodes);
 document.getElementById('logout').addEventListener('click', logout);
 document.getElementById('user-form').addEventListener('submit', saveUser);
