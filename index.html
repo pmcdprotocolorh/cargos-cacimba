@@ -164,6 +164,15 @@ code{font-size:12.5px}
 .g-op{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer;font-size:14px}
 .g-op input{width:auto;margin-top:3px}
 .callout.ok{border-left-color:var(--ok);background:var(--ok-soft)}
+.sisbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.sis-switch{display:inline-flex;border:1px solid var(--accent);border-radius:10px;overflow:hidden}
+.sis-switch button{border:0;background:var(--surface);padding:10px 22px;font-weight:700;font-size:15px;cursor:pointer;color:var(--accent)}
+.sis-switch button+button{border-left:1px solid var(--accent)}
+.sis-switch button[aria-pressed="true"]{background:var(--accent);color:var(--surface)}
+details.imp-sec{border:1px solid var(--line);border-radius:10px;padding:10px 14px;background:var(--bg)}
+details.imp-sec summary{cursor:pointer;font-weight:700}
+details.imp-sec[open] summary{margin-bottom:10px}
+.imp-sel{max-width:340px;width:100%}
 details.users summary{cursor:pointer;font-weight:600}
 @media (max-width:640px){ h1{font-size:23px} .tile .v{font-size:24px} .hide-sm{display:none} }
 @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
@@ -173,7 +182,7 @@ details.users summary{cursor:pointer;font-weight:600}
 <div class="wrap">
   <header>
     <h1>Organograma Municipal de Secretarias e Cargos (Lei nº 230/2026)</h1>
-    <div class="sub">Prefeitura Municipal de Cacimba de Dentro/PB · Lei de 07/04/2026 cruzada com as Relações de Funcionários de outubro/2026 da Prefeitura e do Fundo Municipal de Saúde (emitidas em 28/10/2026)</div>
+    <div class="sub">Prefeitura Municipal de Cacimba de Dentro/PB</div>
   </header>
 
   <section class="card login" id="login-card" aria-labelledby="h-login">
@@ -187,6 +196,13 @@ details.users summary{cursor:pointer;font-weight:600}
   </section>
 
   <div id="app" hidden style="display:grid;gap:22px">
+  <div class="sisbar">
+    <div class="sis-switch" role="group" aria-label="Escolher sistema">
+      <button type="button" data-sis="pref" aria-pressed="true">Prefeitura</button>
+      <button type="button" data-sis="saude" aria-pressed="false">Saúde</button>
+    </div>
+    <span class="sub" id="sis-sub"></span>
+  </div>
   <div class="userbar"><button type="button" class="btn primary" id="gerir-btn" aria-expanded="false" aria-controls="gerir">Gerenciar estrutura</button><span class="note">Conectado como <b id="who"></b></span><button type="button" class="btn small" id="logout">Sair</button></div>
   <section class="card gerir" id="gerir" hidden aria-labelledby="h-gerir">
     <div class="sectionhead"><h2 id="h-gerir">Gerenciar estrutura</h2><button type="button" class="btn small" id="gerir-fechar">Fechar</button></div>
@@ -208,43 +224,10 @@ details.users summary{cursor:pointer;font-weight:600}
   </section>
 
   <section class="card" style="display:grid;gap:14px" aria-labelledby="h-tools">
-    <h2 id="h-tools">Atualizar por arquivo TXT</h2>
-    <p class="note" style="margin:0">Uma linha por servidor, com os campos separados por ponto e vírgula. Use a <b>matrícula</b> para identificar o servidor: ela é única e evita confusão entre nomes iguais (o nome ainda é aceito, mas a matrícula é mais segura). A secretaria é opcional, mas evita dúvida em cargos que existem em várias secretarias (ex.: Assessor Nível I). Antes de aplicar, a página mostra o que vai mudar.</p>
-    <div class="txtopts">
-      <div class="txtopt">
-        <h3>Nomeações e exonerações</h3>
-        <p class="note" style="margin:0">Exoneração: <code>MATRÍCULA; EXONERADO</code><br>Nomeação: <code>MATRÍCULA; NOME; CARGO; NOMEADO; SECRETARIA</code><br>Na nomeação de quem ainda não está no sistema, informe a matrícula nova e o nome.</p>
-        <pre class="ex">0065432; EXONERADO
-0065700; MARIA DA SILVA SOUZA; Coordenador de Laboratório; NOMEADO; Hospital</pre>
-        <div><label for="txt-file" class="btn primary">Escolher TXT de nomeações e exonerações</label><input id="txt-file" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
-      </div>
-      <div class="txtopt">
-        <h3>Remanejamento entre secretarias</h3>
-        <p class="note" style="margin:0"><code>MATRÍCULA; CARGO DE DESTINO; SECRETARIA DE DESTINO</code><br>Só para quem já é comissionado. O servidor sai do cargo atual e passa para o cargo informado.</p>
-        <pre class="ex">0065620; Assessor Nível II; Transportes
-0065448; Coordenação de Contabilidade; Finanças</pre>
-        <div><label for="txt-reman" class="btn primary">Escolher TXT de remanejamento</label><input id="txt-reman" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
-      </div>
-      <div class="txtopt">
-        <h3>Cargos, secretarias e valores</h3>
-        <p class="note" style="margin:0"><code>CÓDIGO; CAMPO; NOVO VALOR</code><br>Criar cargo: <code>SECRETARIA; NOVO; NOME DO CARGO; SÍMBOLO; VALOR; QUANTIDADE; LEI</code>. Se o símbolo ainda não existir no sistema, ele é incluído com o valor informado. Valor, quantidade e lei são opcionais quando o símbolo já existe.<br>Criar só o símbolo: <code>SÍMBOLO; NOVO; CÓDIGO; VALOR; LEI</code><br>Campos: <b>NOME</b>, <b>SECRETARIA</b> (muda o cargo de secretaria), <b>VALOR</b> e <b>QUANTIDADE</b>. Use o código do cargo (ex.: FIN-2), o da secretaria (ex.: FIN, só para NOME) ou um símbolo (ex.: CC-4, só para VALOR, muda todos os cargos desse símbolo).</p>
-        <pre class="ex">FIN-2; NOME; Diretoria de Receitas e Tributos
-FIN-3; SECRETARIA; TRANSP
-CC-4; VALOR; 2.700,00
-HOSP-1; VALOR; 2.800,00
-FIN; NOME; Secretaria Municipal da Fazenda
-FIN; NOVO; Coordenação de Tesouraria; CC-4; 1
-SAUDE; NOVO; Coordenador do CEO; CC-10; 2.900,00; 1; Lei 189/2024
-SÍMBOLO; NOVO; FG-1; 800,00; Lei 150/2023</pre>
-        <div><label for="txt-alt" class="btn primary">Escolher TXT de alterações</label><input id="txt-alt" type="file" accept=".txt,.csv,text/plain" class="vh"></div>
-      </div>
-    </div>
-    <details class="users"><summary>Códigos de secretarias e cargos</summary>
-      <div style="display:grid;gap:8px;padding-top:10px">
-        <input id="codes-q" type="search" placeholder="Filtrar por nome, código ou símbolo" autocomplete="off" aria-label="Filtrar códigos">
-        <div id="codes" class="tbl-wrap codes"></div>
-      </div></details>
-    <div id="txt-preview" style="display:grid;gap:10px"></div>
+    <h2 id="h-tools">Atualizar pela folha (PDF)</h2>
+    <p class="note" style="margin:0">Envie o PDF da <b>Relação de Funcionários</b> do sistema <b id="imp-sis"></b>, o mesmo modelo gerado pela folha de pagamento. O sistema compara o PDF com os dados atuais pela matrícula e mostra antes de aplicar: quem entrou, quem mudou de cargo ou lotação e quem não consta mais. Nada muda até você clicar em Aplicar.</p>
+    <div class="toolbar"><label for="imp-file" class="btn primary" id="imp-label">Escolher PDF da folha</label><input id="imp-file" type="file" accept="application/pdf,.pdf" class="vh"><span class="note" id="imp-ult"></span></div>
+    <div id="imp-preview" style="display:grid;gap:12px"></div>
     <div id="save-state"></div>
     <details class="users"><summary>Usuários e senhas</summary>
       <div style="display:grid;gap:10px;padding-top:10px">
@@ -305,7 +288,7 @@ function personCard(p){
 }
 function doSearch(){
   const t = norm(q.value).trim().split(/\s+/).filter(Boolean);
-  if (!t.length){ out.innerHTML = `<div class="hint">${fmt(D.pessoas.length)} vínculos nas folhas de outubro/2026 (Prefeitura e Saúde). A busca ignora acentos e aceita partes do nome em qualquer ordem, ou a matrícula.</div>`; return; }
+  if (!t.length){ out.innerHTML = `<div class="hint">${fmt(D.pessoas.filter(p => !p.ex).length)} vínculos ativos no sistema ${SIS_NOME[SIS]}. A busca ignora acentos e aceita partes do nome em qualquer ordem, ou a matrícula.</div>`; return; }
   const qm = q.value.trim();
   const hits = /^\d{2,}$/.test(qm) ? D.pessoas.filter(p => p.m.includes(qm) || p.m === qm.padStart(7, '0'))
              : IDX.filter(([n]) => t.every(w => n.includes(w))).map(x => x[1]);
@@ -342,14 +325,14 @@ function overview(){
       <div class="tile acc"><span class="k">Efetivos</span><span class="v">${fmt(V.Efetivo||0)}</span></div>
       <div class="tile acc"><span class="k">Comissionados</span><span class="v">${fmt(V.Comissionado||0)}</span></div>
       <div class="tile acc"><span class="k">Contratados</span><span class="v">${fmt(V.Contratado||0)}</span></div>
-      <div class="tile"><span class="k">Outros</span><span class="v">${fmt(V.Outros||0)}</span><span class="d">Prefeito e vice, conselheiros tutelares, pensionistas</span></div>
+      ${V.Outros ? `<div class="tile"><span class="k">Outros</span><span class="v">${fmt(V.Outros)}</span><span class="d">Prefeito e vice, conselheiros tutelares, pensionistas</span></div>` : ''}
     </div>
   </section>
 
   <section style="display:grid;gap:12px" aria-labelledby="h-lei">
     <div class="sectionhead"><h2 id="h-lei">Cargos comissionados: lei × folha</h2><span class="sub">${T.comissionados_folha} comissionados na folha comparados com os ${T.previstos} cargos da lei</span></div>
     <div class="tiles">
-      <div class="tile"><span class="k">Previstos na lei</span><span class="v">${T.previstos}</span><span class="d">283 do Anexo I + 6 assessorias do art. 28 (Educação) + 9 do Hospital (Lei 147/2023)</span></div>
+      <div class="tile"><span class="k">Previstos na lei</span><span class="v">${T.previstos}</span><span class="d">${SIS === 'saude' ? 'Secretaria de Saúde (Lei 230/2026) e Hospital (Lei 147/2023)' : 'Anexo I da Lei 230/2026 e assessorias do art. 28 (Educação)'}${D.unidades.reduce((a, u) => a + u.cargos.filter(c => /criado/.test(c.nota || '')).reduce((b, c) => b + c.qtd, 0), 0) ? ', mais os cargos criados no sistema' : ''}</span></div>
       <div class="tile ok"><span class="k">Ocupados</span><span class="v">${T.ocupados}</span><span class="d">dentro da quantidade da lei</span></div>
       <div class="tile warn"><span class="k">Vagos</span><span class="v">${T.vagas}</span><span class="d">faltam preencher</span></div>
       <div class="tile bad"><span class="k">Excedentes</span><span class="v">${T.excedentes}</span><span class="d">acima da quantidade do cargo</span></div>
@@ -368,7 +351,7 @@ function overview(){
   </section>
 
   ${MET}
-  ${saudeSection()}
+  ${SIS === 'saude' ? saudeSection() : ''}
 
   ${historico()}
   <section class="card" style="display:grid;gap:10px" aria-labelledby="h-crit">
@@ -446,7 +429,7 @@ function metrics(){
   }).join('');
   return `
   <section class="card" style="display:grid;gap:18px" aria-labelledby="h-met">
-    <div class="sectionhead"><h2 id="h-met">Métricas</h2><span class="sub">Prefeitura + Fundo Municipal de Saúde</span></div>
+    <div class="sectionhead"><h2 id="h-met">Métricas</h2><span class="sub">Sistema ${SIS_NOME[SIS]}</span></div>
 
     <div style="display:grid;gap:12px">
       <h3>Efetivos × comissionados × contratados</h3>
@@ -490,10 +473,10 @@ function sugereCodigo(nome){
 }
 async function excluirSecretaria(id){
   const u = U[id]; if (!u || u.cargos.length || !u.criada) return;
-  D.unidades = D.unidades.filter(x => x !== u);
+  FULL.unidades = FULL.unidades.filter(x => x !== u);
   const hoje = new Date();
-  (D.historico = D.historico || []).unshift({d:hoje.toISOString(), u:LOGIN, a:'Alteração', n:u.nome, det:`Secretaria excluída · código ${code(u)}`});
-  D.atualizado = hoje.toISOString(); D._rascunho = true;
+  (FULL.historico = FULL.historico || []).unshift({d:hoje.toISOString(), s:SIS, u:LOGIN, a:'Alteração', n:u.nome, det:`Secretaria excluída · código ${code(u)}`});
+  FULL.atualizado = hoje.toISOString(); FULL._rascunho = true;
   lsSet(DRAFT_KEY, JSON.stringify(await encryptData()));
   location.hash = 'painel'; refreshAll();
 }
@@ -615,9 +598,9 @@ async function submitGForm(e){
     if (simbolos().some(x => x.toLowerCase() === id)) return gErro(`${id.toUpperCase()} é um símbolo de cargo; escolha outro código.`);
     const dup = D.unidades.find(u => norm(u.nome) === norm(nm)); if (dup) return gErro(`Já existe uma secretaria com esse nome (${code(dup)}).`);
     const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR');
-    D.unidades.push({id, nome:nm, nome_lei: lei || `Criada no sistema em ${dt}`, grupo:natureza, cargos:[], criada:dt});
-    (D.historico = D.historico || []).unshift({d:hoje.toISOString(), u:LOGIN, a:'Alteração', n:nm, det:`Nova secretaria criada · código ${id.toUpperCase()} · ${natureza}${lei ? ' · ' + lei : ''}`});
-    D.atualizado = hoje.toISOString(); D._rascunho = true; lsSet(DRAFT_KEY, JSON.stringify(await encryptData())); refreshAll();
+    FULL.unidades.push({id, nome:nm, nome_lei: lei || `Criada no sistema em ${dt}`, grupo:natureza, cargos:[], criada:dt, sis:SIS});
+    (FULL.historico = FULL.historico || []).unshift({d:hoje.toISOString(), s:SIS, u:LOGIN, a:'Alteração', n:nm, det:`Nova secretaria criada · código ${id.toUpperCase()} · ${natureza}${lei ? ' · ' + lei : ''}`});
+    FULL.atualizado = hoje.toISOString(); FULL._rascunho = true; lsSet(DRAFT_KEY, JSON.stringify(await encryptData())); refreshAll();
     return gOk(1, `<b>${esc(nm)}</b> foi criada com o código <code>${id.toUpperCase()}</code>. Agora use “Criar cargo” para incluir os cargos dela.`);
   }
   if (ACAO === 'cargo') {
@@ -685,7 +668,7 @@ async function submitGForm(e){
 
 /* ---------- Histórico ---------- */
 function historico(){
-  const H = D.historico || [];
+  const H = (FULL.historico || []).filter(h => !h.s || h.s === SIS);
   if (!H.length) return `<section class="card" style="display:grid;gap:8px"><h2>Histórico de movimentações</h2><p class="note" style="margin:0">Nenhuma nomeação ou exoneração registrada ainda. Use “Atualizar por arquivo TXT” acima.</p></section>`;
   return `<section class="card" style="display:grid;gap:12px"><div class="sectionhead"><h2>Histórico de movimentações</h2><span class="sub">${H.length} registro${H.length>1?'s':''}</span></div>
     <div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Ação</th><th>Servidor</th><th>Cargo e órgão</th><th>Usuário</th></tr></thead>
@@ -694,7 +677,7 @@ function historico(){
 
 /* ---------- Saúde ---------- */
 function saudeSection(){
-  const S = D.pessoas.filter(p => !p.ex && (p.f === 'Fundo Municipal de Saúde' || (p.f === 'Atualização' && p.u === 'saude')));
+  const S = D.pessoas.filter(p => !p.ex);
   const V = {}; S.forEach(p => V[p.v] = (V[p.v]||0) + 1);
   const t = S.length, u = U.saude;
   const LOT = {}; S.forEach(p => { LOT[p.l] = LOT[p.l] || {}; LOT[p.l][p.v] = (LOT[p.l][p.v]||0) + 1; });
@@ -706,7 +689,7 @@ function saudeSection(){
     `<tr><td>${esc(k)}</td><td class="n">${c.Efetivo||'–'}</td><td class="n">${c.Contratado||'–'}</td><td class="n"><b>${sumV(c)}</b></td></tr>`).join('');
   return `
   <section class="card" style="display:grid;gap:18px" aria-labelledby="h-sau">
-    <div class="sectionhead"><h2 id="h-sau">Saúde</h2><span class="sub">Folha do Fundo Municipal de Saúde · outubro/2026</span></div>
+    <div class="sectionhead"><h2 id="h-sau">Composição da folha da Saúde</h2><span class="sub">Fundo Municipal de Saúde</span></div>
     <div class="tiles">
       <div class="tile"><span class="k">Vínculos</span><span class="v">${t}</span></div>
       <div class="tile acc"><span class="k">Efetivos</span><span class="v">${V.Efetivo||0}</span><span class="d">${pct(V.Efetivo||0,t)}</span></div>
@@ -715,7 +698,7 @@ function saudeSection(){
     </div>
     ${stackBar(V)}
     <div style="display:grid;gap:12px">
-      <div class="sectionhead"><h3>Comissionados da Saúde × Lei 230/2026</h3><a href="#sec-saude">Ver cargo por cargo →</a></div>
+      <div class="sectionhead"><h3>Secretaria de Saúde × Lei 230/2026</h3><a href="#sec-saude">Ver cargo por cargo →</a></div>
       <div class="tiles">
         <div class="tile"><span class="k">Previstos na lei</span><span class="v">${u.previstos}</span></div>
         <div class="tile ok"><span class="k">Ocupados</span><span class="v">${u.ocupados}</span></div>
@@ -738,7 +721,7 @@ function saudeSection(){
 /* ---------- Detalhe ---------- */
 let filtro = 'todos';
 function detail(id){
-  const u = U[id]; if (!u) return overview();
+  const u = U[id]; if (!u || u.sis !== SIS) return overview();
   const cargos = u.cargos.filter(c => filtro === 'todos' || (filtro === 'vagos' && c.oc.length < c.qtd) || (filtro === 'exc' && c.oc.length > c.qtd));
   const rows = cargos.map(c => {
     const [lab, cls] = cargoStatus(c);
@@ -792,6 +775,7 @@ function detail(id){
 
 function route(){
   const h = location.hash.slice(1);
+  if (h.startsWith('sec-') && U[h.slice(4)] && U[h.slice(4)].sis !== SIS) { SIS = U[h.slice(4)].sis; lsSet('cargos-lei230-sistema', SIS); recompute(); renderSis(); doSearch(); }
   if (h.startsWith('sec-')) { detail(h.slice(4)); window.scrollTo(0, document.getElementById('main').offsetTop - 10); }
   else overview();
 }
@@ -824,7 +808,7 @@ const code = x => x.id.toUpperCase();
 const simbLabel = c => /^R\$/.test(c.simbolo) ? 'Lei 147' : (c.simbolo || '—');
 
 /* ================= Dados, criptografia e login ================= */
-let D, P = {}, U = {}, C = {}, IDX = [], KEY = null, USERS = null, LOGIN = '';
+let D, FULL = null, SIS = 'pref', IMP = null, P = {}, U = {}, C = {}, IDX = [], KEY = null, USERS = null, LOGIN = '';
 const ITER_DEFAULT = 200000;
 const b64 = buf => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
 const unb64 = s => Uint8Array.from(atob(s), ch => ch.charCodeAt(0));
@@ -852,10 +836,11 @@ async function decryptData(obj){
   return JSON.parse(dec.decode(pt));
 }
 function serializable(){
-  return {fonte:D.fonte, atualizado:D.atualizado, historico:D.historico || [], valores:D.valores || {}, valoresData:D.valoresData || {}, simbolos:D.simbolos || {},
-    unidades:D.unidades.map(u => ({id:u.id, nome:u.nome, nome_lei:u.nome_lei, grupo:u.grupo, ...(u.criada ? {criada:u.criada} : {}),
+  const F = FULL;
+  return {fonte:F.fonte, atualizado:F.atualizado, historico:F.historico || [], valores:F.valores || {}, valoresData:F.valoresData || {}, simbolos:F.simbolos || {}, importacoes:F.importacoes || [],
+    unidades:F.unidades.map(u => ({id:u.id, nome:u.nome, nome_lei:u.nome_lei, grupo:u.grupo, sis:u.sis, ...(u.criada ? {criada:u.criada} : {}),
       cargos:u.cargos.map(c => { const o = {id:c.id, nome:c.nome, simbolo:c.simbolo, qtd:c.qtd}; if (c.nota) o.nota = c.nota; if (c.v != null) { o.v = c.v; o.vd = c.vd; } if (c.tipo) o.tipo = c.tipo; return o; })})),
-    pessoas:D.pessoas};
+    pessoas:F.pessoas};
 }
 async function encryptData(){
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -871,29 +856,64 @@ function download(name, text){
 const lsGet = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
 const lsSet = (k, v) => { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch(e){} };
 
+const SIS_NOME = {pref:'Prefeitura', saude:'Saúde'};
+const FOLHA_NOME = {pref:'Prefeitura', saude:'Fundo Municipal de Saúde'};
+function setFull(obj){
+  FULL = obj;
+  FULL.historico = FULL.historico || []; FULL.valores = FULL.valores || {}; FULL.valoresData = FULL.valoresData || {};
+  FULL.simbolos = FULL.simbolos || {}; FULL.importacoes = FULL.importacoes || [];
+  FULL.unidades.forEach(u => { if (!u.sis) u.sis = (u.id === 'saude' || u.id === 'hosp') ? 'saude' : 'pref'; });
+  FULL.pessoas.forEach(p => { if (p.fc === undefined && (p.f === 'Prefeitura' || p.f === 'Fundo Municipal de Saúde') && !/^Atualiza/.test(p.l || '')) { p.fc = p.c; p.fl = p.l; } });
+}
+function sisOf(p){
+  if (p.cl && C[p.cl] && C[p.cl]._u) return C[p.cl]._u.sis;
+  if (p.u && U[p.u]) return U[p.u].sis;
+  return p.f === 'Fundo Municipal de Saúde' ? 'saude' : 'pref';
+}
 function recompute(){
-  P = Object.fromEntries(D.pessoas.map(p => [p.m, p]));
-  U = Object.fromEntries(D.unidades.map(u => [u.id, u])); C = {};
-  D.unidades.forEach(u => { u.ne = []; u.cargos.forEach(c => { c.oc = []; C[c.id] = c; }); });
-  const act = D.pessoas.filter(p => !p.ex);
-  act.forEach(p => {
+  // índices sobre TODOS os dados (as duas folhas)
+  P = Object.fromEntries(FULL.pessoas.map(p => [p.m, p]));
+  U = Object.fromEntries(FULL.unidades.map(u => [u.id, u])); C = {};
+  FULL.unidades.forEach(u => { u.ne = []; u.cargos.forEach(c => { c.oc = []; c._u = u; C[c.id] = c; }); });
+  const actAll = FULL.pessoas.filter(p => !p.ex);
+  actAll.forEach(p => {
     if (p.st !== 'nao' && p.cl && C[p.cl]) { C[p.cl].oc.push(p.m); return; }
     if (p.v === 'Comissionado' && p.st === 'nao' && U[p.u]) U[p.u].ne.push(p.m);
   });
-  D.unidades.forEach(u => {
-    u.cargos.forEach(c => { const n = c.oc.length; c.ocup = Math.min(n, c.qtd); c.vagas = Math.max(c.qtd - n, 0); c.exced = Math.max(n - c.qtd, 0); });
+  FULL.unidades.forEach(u => {
+    u.cargos.forEach(c => { const n = c.oc.length; c.ocup = Math.min(n, c.qtd); c.vagas = Math.max(c.qtd - n, 0); c.exced = Math.max(n - c.qtd, 0); c.valor = valorCargo(c); });
     const s = k => u.cargos.reduce((a, c) => a + c[k], 0);
     u.previstos = s('qtd'); u.ocupados = s('ocup'); u.vagas = s('vagas'); u.excedentes = s('exced'); u.n_nao = u.ne.length;
     u.comissionados_folha = u.cargos.reduce((a, c) => a + c.oc.length, 0) + u.n_nao;
-    u.cargos.forEach(c => c.valor = valorCargo(c));
-
   });
+  // visão do sistema escolhido (Prefeitura ou Saúde)
+  D = Object.create(FULL);
+  D.unidades = FULL.unidades.filter(u => u.sis === SIS);
+  D.pessoas = FULL.pessoas.filter(p => sisOf(p) === SIS);
   D.vinculos = {}; D.vinculos_secretaria = {};
-  act.forEach(p => { D.vinculos[p.v] = (D.vinculos[p.v] || 0) + 1;
+  D.pessoas.filter(p => !p.ex).forEach(p => { D.vinculos[p.v] = (D.vinculos[p.v] || 0) + 1;
     const vs = D.vinculos_secretaria[p.s] = D.vinculos_secretaria[p.s] || {}; vs[p.v] = (vs[p.v] || 0) + 1; });
   IDX = D.pessoas.map(p => [norm(p.n), p]);
 }
-function refreshAll(){ recompute(); doSearch(); route(); renderTools(); }
+function setSis(s){
+  if (s === SIS) return;
+  SIS = s; lsSet('cargos-lei230-sistema', s);
+  IMP = null; const ib = document.getElementById('imp-preview'); if (ib) ib.innerHTML = '';
+  if (location.hash.startsWith('#sec-')) location.hash = 'painel';
+  refreshAll();
+}
+function renderSis(){
+  document.querySelectorAll('[data-sis]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sis === SIS)));
+  document.getElementById('sis-sub').textContent = SIS === 'saude'
+    ? 'Sistema Saúde · Secretaria de Saúde e Hospital Municipal · folha do Fundo Municipal de Saúde'
+    : 'Sistema Prefeitura · secretarias e órgãos da Lei 230/2026 · folha da Prefeitura';
+  document.getElementById('imp-sis').textContent = SIS_NOME[SIS];
+  document.getElementById('imp-label').textContent = `Escolher PDF da folha – ${SIS_NOME[SIS]}`;
+  const ult = (FULL.importacoes || []).filter(x => x.sis === SIS).slice(-1)[0];
+  document.getElementById('imp-ult').textContent = ult ? `Última importação: folha de ${ult.mes} (emitida em ${ult.emissao}), importada em ${new Date(ult.d).toLocaleString('pt-BR')} por ${ult.u}.`
+    : 'Nenhuma folha importada ainda neste sistema; os dados atuais vêm da folha de outubro/2026.';
+}
+function refreshAll(){ recompute(); renderSis(); doSearch(); route(); renderTools(); }
 
 async function doLogin(e){
   e.preventDefault();
@@ -911,12 +931,13 @@ async function doLogin(e){
     try { KEY = await unwrapKey(u, senha); } catch(_) { throw new Error('cred'); }
     const r2 = await fetch('dados.enc', {cache:'no-store'});
     if (!r2.ok) throw new Error('arquivo');
-    D = await decryptData(await r2.json());
+    setFull(await decryptData(await r2.json()));
     LOGIN = login;
+    SIS = lsGet('cargos-lei230-sistema') === 'saude' ? 'saude' : 'pref';
     // rascunho deste navegador mais novo que o arquivo publicado?
     const dr = lsGet(DRAFT_KEY);
     if (dr) {
-      try { const o = JSON.parse(dr); if ((o.atualizado || '') > (D.atualizado || '')) { D = await decryptData(o); D._rascunho = true; } else lsSet(DRAFT_KEY, null); }
+      try { const o = JSON.parse(dr); if ((o.atualizado || '') > (FULL.atualizado || '')) { setFull(await decryptData(o)); FULL._rascunho = true; } else lsSet(DRAFT_KEY, null); }
       catch(_) { lsSet(DRAFT_KEY, null); }
     }
     document.getElementById('login-card').hidden = true;
@@ -929,7 +950,7 @@ async function doLogin(e){
       'Não foi possível ler usuarios.json ou dados.enc. Abra o sistema pelo endereço do GitHub Pages, não pelo arquivo no computador.';
   } finally { btn.disabled = false; btn.textContent = 'Entrar'; }
 }
-function logout(){ KEY = null; D = null; LOGIN = ''; document.getElementById('app').hidden = true; document.getElementById('login-card').hidden = false; document.getElementById('main').innerHTML = ''; document.getElementById('results').innerHTML = ''; q.value = ''; }
+function logout(){ KEY = null; D = null; FULL = null; LOGIN = ''; document.getElementById('app').hidden = true; document.getElementById('login-card').hidden = false; document.getElementById('main').innerHTML = ''; document.getElementById('results').innerHTML = ''; q.value = ''; }
 
 /* ================= Atualização por TXT ================= */
 const STOP = new Set(['de','da','do','das','dos','e','a','o','as','os','para','na','no','em','p','municipal','secretaria','sec','cc']);
@@ -1065,7 +1086,7 @@ function findUnit(t){
   const sc = D.unidades.map(u => ({u, s:unitScore(u, t)})), best = Math.max(0, ...sc.map(x => x.s));
   return best >= 0.5 ? sc.filter(x => x.s === best).map(x => x.u) : [];
 }
-const unitOf = c => D.unidades.find(u => u.cargos.includes(c));
+const unitOf = c => FULL.unidades.find(u => u.cargos.includes(c));
 function parseAlt(text){
   const out = [], pend = {};
   text.split(/\r?\n/).forEach((linha, i) => {
@@ -1155,15 +1176,15 @@ function parseAlt(text){
 function applyAlt(x, dt, hoje, hist, origem = 'TXT'){
   let det = x.desc;
   if (x.tipo === 'simnovo') {
-    D.simbolos = D.simbolos || {}; D.simbolos[x.alvo] = {v:x.novo.v, d:dt, obs:x.novo.obs};
+    FULL.simbolos = FULL.simbolos || {}; FULL.simbolos[x.alvo] = {v:x.novo.v, d:dt, obs:x.novo.obs};
   } else if (x.tipo === 'novo') {
-    if (x.novo.novoSym && !(D.simbolos || {})[x.novo.novoSym.sym]) { D.simbolos = D.simbolos || {}; D.simbolos[x.novo.novoSym.sym] = {v:x.novo.novoSym.v, d:dt, obs:x.novo.novoSym.obs}; }
+    if (x.novo.novoSym && !(D.simbolos || {})[x.novo.novoSym.sym]) { FULL.simbolos = FULL.simbolos || {}; FULL.simbolos[x.novo.novoSym.sym] = {v:x.novo.novoSym.v, d:dt, obs:x.novo.novoSym.obs}; }
     const u = U[x.alvo]; let k = u.cargos.length; while (C[`${u.id}-${k}`]) k++;
     const c = {id:`${u.id}-${k}`, nome:x.novo.nome, simbolo:x.novo.simbolo, qtd:x.novo.qtd, nota:`Cargo criado ${origem === 'pelo sistema' ? 'pelo sistema' : 'por TXT'} em ${dt}${x.novo.obs ? ' – ' + x.novo.obs : ''}.`, oc:[]};
     if (x.novo.tipo === 'Contrato') c.tipo = 'Contrato';
     if (x.novo.v != null) { c.v = x.novo.v; c.vd = dt; }
     u.cargos.push(c); C[c.id] = c; det = x.desc + ` · código ${code(c)}`;
-  } else if (x.tipo === 'sym') { D.valores = D.valores || {}; D.valoresData = D.valoresData || {}; D.valores[x.alvo] = x.novo; D.valoresData[x.alvo] = dt; }
+  } else if (x.tipo === 'sym') { FULL.valores = FULL.valores || {}; FULL.valoresData = FULL.valoresData || {}; FULL.valores[x.alvo] = x.novo; FULL.valoresData[x.alvo] = dt; }
   else if (x.tipo === 'unid') { U[x.alvo].nome = x.novo; }
   else {
     const c = C[x.alvo];
@@ -1216,7 +1237,7 @@ function applyItem(x, dt, hoje, hist, k, origem){
     const suf = tv === 'Contratado' ? '-T' : '-C';
     let m = x.mat && !P[x.mat] ? x.mat : (x.mat ? x.mat + suf : 'N' + Date.now().toString(36).toUpperCase() + (k || 0));
     while (P[m] && !P[m].ex) m += suf;
-    if (P[m]) { p = P[m]; delete p.ex; } else { p = {f:'Atualização', m, n:x.nome.toUpperCase(), adm:dt}; D.pessoas.push(p); P[m] = p; }
+    if (P[m]) { p = P[m]; delete p.ex; } else { p = {f:'Atualização', m, n:x.nome.toUpperCase(), adm:dt}; FULL.pessoas.push(p); P[m] = p; }
     p.adm = dt; p.v = tv;
     p.obs = x.de ? `${acao} em ${dt}; também tem o vínculo ${P[x.de].v.toLowerCase()} de matrícula ${x.de}.` : `${acao} em ${dt} (${origem}).`;
   }
@@ -1225,11 +1246,12 @@ function applyItem(x, dt, hoje, hist, k, origem){
   return true;
 }
 async function commit(items, origem){
-  const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR'), hist = D.historico = D.historico || [];
-  let n = 0;
+  const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR'), hist = FULL.historico = FULL.historico || [];
+  let n = 0; const h0 = hist.length;
   items.forEach((x, k) => { if (applyItem(x, dt, hoje, hist, k, origem)) n++; });
-  D.pessoas.sort((a, b) => a.n.localeCompare(b.n, 'pt-BR'));
-  D.atualizado = hoje.toISOString(); D._rascunho = true;
+  hist.slice(0, hist.length - h0).forEach(h => { if (!h.s) h.s = SIS; });
+  FULL.pessoas.sort((a, b) => a.n.localeCompare(b.n, 'pt-BR'));
+  FULL.atualizado = hoje.toISOString(); FULL._rascunho = true;
   lsSet(DRAFT_KEY, JSON.stringify(await encryptData()));
   refreshAll();
   return n;
@@ -1238,6 +1260,225 @@ async function applyPreview(){
   const n = await commit(PREVIEW.filter(x => !x.erro), 'atualização por TXT');
   PREVIEW = []; document.getElementById('txt-file').value = ''; document.getElementById('txt-reman').value = ''; document.getElementById('txt-alt').value = '';
   document.getElementById('txt-preview').innerHTML = `<div class="callout">${n} alteraç${n === 1 ? 'ão aplicada' : 'ões aplicadas'}. Para valer para todos, baixe o <b>dados.enc</b> e substitua o arquivo no GitHub.</div>`;
+}
+
+/* ================= Importação da folha em PDF ================= */
+// Shared parser: pages = [{items:[{str,x,y,w}]}] in stream order
+function parseFolha(pages){
+  const rows = [], hdr = pages.map(p => p.items.map(i => i.str).join(' ')).join(' ');
+  for (const pg of pages){
+    const its = pg.items.filter(i => i.str.trim());
+    const anchors = its.filter(i => i.x < 40 && /^\d{7}/.test(i.str.trim()));
+    for (const a of anchors){
+      const row = its.filter(i => Math.abs(i.y - a.y) < 3);
+      const m = a.str.trim().match(/^(\d{7})\s*(.*)$/);
+      const nomeParts = [m[2], ...row.filter(i => i !== a && i.x > 40 && i.x < 270).map(i => i.str.trim())];
+      const nome = nomeParts.join(' ').replace(/\s*\d{3}\.\d{3}\.\d{3}-\d{2}.*/, '').replace(/\s+/g, ' ').trim();
+      const adm = (row.find(i => i.x > 488 && i.x < 540 && /^\d{2}\/\d{2}\/\d{4}$/.test(i.str.trim())) || {str:''}).str.trim();
+      const right = row.filter(i => i.x >= 540);   // stream order kept
+      let k = right.findIndex(i => Math.abs(i.x - 672) < 1.5);
+      if (k < 0) k = right.length;
+      const cargo = right.slice(0, k).map(i => i.str.trim()).join(' ').replace(/\s+/g, ' ').trim();
+      const lot = right.slice(k).map(i => i.str.trim()).join(' ').replace(/\s+/g, ' ').trim();
+      rows.push({m:m[1], n:nome, adm, c:cargo, l:lot});
+    }
+  }
+  const sis = /FUNDO MUNICIPAL DE SA[UÚ]DE/i.test(hdr) ? 'saude' : /PREFEITURA MUNICIPAL/i.test(hdr) ? 'pref' : null;
+  const mes = (hdr.match(/Mensal\s*-\s*([A-Za-zçÇ]+ de \d{4})/) || [])[1] || '';
+  const emissao = (hdr.match(/Relação de Funcionários\s+(\d{2}\/\d{2}\/\d{4})/) || hdr.match(/(\d{2}\/\d{2}\/\d{4})/) || [])[1] || '';
+  return {rows, sis, mes, emissao};
+}
+
+/* ---------- Leitura do PDF (pdf.js carregado só quando necessário) ---------- */
+const PDFJS_V = '3.11.174', PDFJS_CDN = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_V}/`;
+function loadScript(src){ return new Promise((ok, err) => { const sc = document.createElement('script'); sc.src = src; sc.onload = ok; sc.onerror = err; document.head.appendChild(sc); }); }
+async function getPdfjs(){
+  if (window.pdfjsLib) return window.pdfjsLib;
+  let base = PDFJS_CDN;
+  try { await loadScript(base + 'pdf.min.js'); } catch(_) { base = ''; await loadScript('pdf.min.js'); }
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.js';
+  return window.pdfjsLib;
+}
+const impBox = () => document.getElementById('imp-preview');
+async function lerPdf(file){
+  const box = impBox(); IMP = null;
+  box.innerHTML = '<div class="note">Carregando leitor de PDF…</div>';
+  let lib;
+  try { lib = await getPdfjs(); } catch(_) { box.innerHTML = '<div class="callout bad">Não foi possível carregar o leitor de PDF. Verifique a conexão com a internet e tente de novo.</div>'; return; }
+  try {
+    const doc = await lib.getDocument({data: new Uint8Array(await file.arrayBuffer())}).promise;
+    const pages = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      box.innerHTML = `<div class="note">Lendo página ${i} de ${doc.numPages}…</div>`;
+      const tc = await (await doc.getPage(i)).getTextContent();
+      pages.push({items: tc.items.map(t => ({str:t.str, x:t.transform[4], y:t.transform[5], w:t.width}))});
+    }
+    const r = parseFolha(pages);
+    if (!r.rows.length) { box.innerHTML = '<div class="callout bad">Não encontrei servidores neste PDF. Use o PDF da “Relação de Funcionários” gerado pela folha de pagamento.</div>'; return; }
+    if (r.sis && r.sis !== SIS) {
+      box.innerHTML = `<div class="callout bad">Este PDF é da folha ${r.sis === 'saude' ? 'do Fundo Municipal de Saúde' : 'da Prefeitura'}, mas você está no sistema ${SIS_NOME[SIS]}.
+        <div class="toolbar" style="margin-top:8px"><button type="button" class="btn primary" id="imp-trocar">Mudar para o sistema ${SIS_NOME[r.sis]} e continuar</button></div></div>`;
+      document.getElementById('imp-trocar').addEventListener('click', () => { setSis(r.sis); IMP = analisarFolha(r, file.name); renderImp(); });
+      return;
+    }
+    IMP = analisarFolha(r, file.name); renderImp();
+  } catch(e) {
+    box.innerHTML = `<div class="callout bad">Não consegui ler este PDF (${esc(e.message || e)}). Confira se é o PDF da Relação de Funcionários.</div>`;
+  }
+}
+
+/* ---------- Regras da folha (mesmas usadas na carga inicial) ---------- */
+const LOT_UNIT_RX = [[/SAUDE|SAÚDE|NASF|PEVA|DENTIST|CONSULTORIO/, 'saude'], [/GABINETE DO PREF/, 'gab'], [/ACAO SOCIAL|ASSISTENCIA SOCIAL/, 'as'], [/SEC DE FINANCAS|ADM E FINANCAS/, 'fin'],
+  [/INFRAESTRUTURA E ZELADORIA|INFRA ?ESTRUTURA/, 'infra'], [/EDUCA/, 'educ'], [/RELAÇÕES INSTITUCIONAIS/, 'ri'], [/ESPORTE/, 'esp'], [/AGRICULTURA/, 'agri'],
+  [/MEIO AMBIENTE/, 'meio'], [/PLANEJAMENTO/, 'plan'], [/MULHERES/, 'mulher'], [/TRANSPORTES/, 'transp'], [/ANIMAL/, 'animal'], [/CONTROLADORIA/, 'cgm']];
+const LOT_FRIENDLY_RX = [[/SAUDE|SAÚDE|NASF|PEVA|DENTIST|CONSULTORIO/, 'Saúde'], [/EDUCA/, 'Educação'], [/INFRA/, 'Infraestrutura'], [/ADM E FINANCAS|SEC DE FINANCAS/, 'Administração e Finanças'],
+  [/ACAO SOCIAL|ASSISTENCIA SOCIAL|PROGRAMA PSB|CRIANÇA FELIZ/, 'Assistência Social'], [/GABINETE/, 'Gabinete do Prefeito'], [/CONTROLADORIA/, 'Controladoria'], [/CONSELHO TUTELAR/, 'Conselho Tutelar'],
+  [/PENSION/, 'Pensionistas'], [/RELAÇÕES/, 'Relações Institucionais'], [/ESPORTE/, 'Esporte, Juventude e Convivência'], [/AGRICULTURA/, 'Agricultura'], [/MEIO AMBIENTE/, 'Meio Ambiente'],
+  [/PLANEJAMENTO/, 'Planejamento'], [/MULHERES/, 'Políticas para Mulheres'], [/TRANSPORTES/, 'Transportes'], [/ANIMAL/, 'Proteção Animal']];
+function lotUnitId(l){
+  for (const [rx, id] of LOT_UNIT_RX) if (rx.test(l) && U[id] && U[id].sis === SIS) return id;
+  const us = D.unidades.map(u => ({u, s:unitScore(u, l)})).filter(x => x.s >= 0.5).sort((a, b) => b.s - a.s);
+  return us.length ? us[0].u.id : null;
+}
+function lotFriendly(l){ for (const [rx, n] of LOT_FRIENDLY_RX) if (rx.test(l)) return n; return l.charAt(0) + l.slice(1).toLowerCase(); }
+function vinculoFolha(c, l, sis){
+  if (/EFETIV/.test(l)) return ['Efetivo', ''];
+  if (sis === 'saude') {
+    if (/COMISSI/.test(l)) return ['Comissionado', ''];
+    if (/CONTRAT/.test(l)) return ['Contratado', ''];
+    return ['Contratado', 'Lotação de programa/plantão da Saúde: classificado como contratado (presumido).'];
+  }
+  if (/CONTRAT/.test(l)) return ['Contratado', ''];
+  if (/^PROGRAMA/.test(l)) return ['Contratado', 'Contratado de programa (classificação presumida).'];
+  if (/CONSELHO TUTELAR/.test(l)) return ['Outros', 'Conselheiro tutelar (mandato).'];
+  if (/PENSION/.test(l)) return ['Outros', 'Pensionista.'];
+  if (/ELETIVO/.test(l)) return ['Outros', 'Agente político eletivo.'];
+  if (/^(AGENTE ADMINISTRATIVO|PROFESSOR MAG)/.test(c)) return ['Efetivo', 'Cargo efetivo registrado em lotação de comissionados (classificação presumida).'];
+  return ['Comissionado', ''];
+}
+function symGuess(c){
+  if (/^ASSESSOR III/.test(c)) return 'CC-8'; if (/^ASSESSOR II/.test(c)) return 'CC-7'; if (/^ASSESSOR I/.test(c)) return 'CC-6';
+  if (/^COORD/.test(c)) return 'CC-4'; if (/^(DIRETOR|VICE-DIRETOR|CONTROLADOR)/.test(c)) return 'CC-3'; return '?';
+}
+const mesmo = (a, b) => { a = (a || '').trim(); b = (b || '').trim(); return a === b || (a.length >= 6 && b.length >= 6 && (a.startsWith(b) || b.startsWith(a))); };
+// proposta de cargo da lei para um comissionado da folha
+function propoeCargo(c, l, ignorar){
+  // 1) alguém com o mesmo cargo e lotação na folha já foi enquadrado
+  const igual = FULL.pessoas.filter(p => p.m !== ignorar && p.v === 'Comissionado' && p.cl && C[p.cl] && C[p.cl]._u.sis === SIS && p.st !== 'nao' && mesmo(p.fc || p.c, c) && mesmo(p.fl || p.l, l));
+  const cont = {}; igual.forEach(p => cont[p.cl] = (cont[p.cl] || 0) + 1);
+  const best = Object.entries(cont).sort((a, b) => b[1] - a[1])[0];
+  const lu = lotUnitId(l);
+  if (best && (!/^COORDENADOR\(A\)$|^COORDENADOR \(SAUDE\)$/.test(c))) {
+    // cargos únicos (qtd 1) já ocupados por outro: não repetir automaticamente
+    if (!(C[best[0]].qtd === 1 && C[best[0]].oc.length >= 1 && Object.keys(cont).length === 1 && igual.length === 1 && !/ASSESS/.test(c))) return {cl:best[0], st:'provavel', u:C[best[0]]._u.id, por:'mesmo cargo de outros servidores'};
+  }
+  // 2) assessor por nível, na secretaria da lotação
+  const nv = /ASSESS/.test(c) ? nivel(c) : null;
+  if (nv && lu) { const a = U[lu].cargos.find(x => x.nome === 'Assessoria Nível ' + ROM[nv]); if (a) return {cl:a.id, st:'exata', u:lu, por:'nível do assessor'}; }
+  // 3) semelhança de nomes nos cargos deste sistema
+  if (!/^COORDENADOR(\(A\)| \(SAUDE\))?$/.test(c)) {
+    const t = toks(c); let cand = [];
+    D.unidades.forEach(u => u.cargos.forEach(x => { const xt = new Set(toks(x.nome)); const sc = t.length ? t.filter(w => xt.has(w)).length / Math.max(t.length, xt.size) + (u.id === lu ? 0.15 : 0) : 0; if (sc >= 0.6) cand.push({x, sc}); }));
+    cand.sort((a, b) => b.sc - a.sc);
+    if (cand.length && (cand.length === 1 || cand[0].sc > cand[1].sc)) return {cl:cand[0].x.id, st:'provavel', u:cand[0].x._u.id, por:'nome parecido'};
+  }
+  return {cl:'', st:'nao', u:lu || (D.unidades[0] && D.unidades[0].id), por:''};
+}
+function analisarFolha(r, arquivo){
+  const folha = FOLHA_NOME[SIS], noPdf = new Set(r.rows.map(x => x.m));
+  const novos = [], mudou = [], iguais = [], sairam = [];
+  r.rows.forEach(x => {
+    const [v, vobs] = vinculoFolha(x.c, x.l, SIS);
+    const p = P[x.m];
+    const it = {...x, v, vobs};
+    if (!p) { if (v === 'Comissionado') it.prop = propoeCargo(x.c, x.l); novos.push(it); return; }
+    it.p = p;
+    const mudouCargo = !mesmo(p.fc != null ? p.fc : p.c, x.c) || !mesmo(p.fl != null ? p.fl : p.l, x.l);
+    if (p.ex || mudouCargo || p.v !== v) {
+      it.motivo = p.ex ? `estava desligado (${p.ex})` : p.v !== v ? `vínculo ${p.v.toLowerCase()} → ${v.toLowerCase()}` : 'cargo ou lotação mudou';
+      if (v === 'Comissionado') {
+        // se o cargo atual foi definido no sistema, mantém como sugestão
+        const manual = /^Atualiza/.test(p.l || '') && p.cl && C[p.cl] && C[p.cl]._u.sis === SIS;
+        it.prop = manual ? {cl:p.cl, st:p.st, u:p.u, por:'cargo definido no sistema'} : propoeCargo(x.c, x.l, x.m);
+      }
+      mudou.push(it); return;
+    }
+    iguais.push(it);
+  });
+  D.pessoas.forEach(p => { if (!p.ex && !noPdf.has(p.m)) sairam.push({p, marcar: p.f === folha}); });
+  return {arquivo, sis:SIS, mes:r.mes, emissao:r.emissao, total:r.rows.length, novos, mudou, iguais, sairam};
+}
+function cargoSelect(id, sel){
+  const groups = D.unidades.slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(u => u.cargos.length ? `<optgroup label="${esc(u.nome)}">${u.cargos.map(c =>
+    `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.nome)} (${c.vagas} vaga${c.vagas !== 1 ? 's' : ''})</option>`).join('')}</optgroup>` : '').join('');
+  return `<select id="${id}" class="imp-sel"><option value="" ${!sel ? 'selected' : ''}>Sem correspondência na lei</option>${groups}</select>`;
+}
+function renderImp(){
+  const box = impBox(), I = IMP; if (!I) { box.innerHTML = ''; return; }
+  const linhaP = (x, k, tipo) => `<tr><td class="n">${esc(x.m)}</td><td><b>${esc(x.n)}</b>${x.vobs ? `<div class="note">${esc(x.vobs)}</div>` : ''}</td>
+      <td>${tipo === 'mudou' ? `<div class="note">antes: ${esc(x.p.fc || x.p.c)} · ${esc(x.p.fl || x.p.l)}</div>` : ''}${esc(x.c)}<div class="note">${esc(x.l)}</div>${tipo === 'mudou' ? `<div class="note"><i>${esc(x.motivo)}</i></div>` : ''}</td>
+      <td><span class="chip c-v">${esc(x.v)}</span></td>
+      <td>${x.v === 'Comissionado' ? cargoSelect(`imp-${tipo}-${k}`, x.prop.cl) + (x.prop.cl ? `<div class="note">sugestão: ${esc(x.prop.por)}</div>` : '<div class="note">sem sugestão automática; escolha o cargo ou deixe sem correspondência</div>') : '<span class="note">não entra na estrutura de cargos da lei</span>'}</td></tr>`;
+  const tab = (arr, tipo) => arr.length ? `<div class="tbl-wrap"><table><thead><tr><th class="n">Matrícula</th><th>Servidor</th><th>Cargo e lotação na folha</th><th>Vínculo</th><th>Cargo da lei</th></tr></thead><tbody>${arr.map((x, k) => linhaP(x, k, tipo)).join('')}</tbody></table></div>` : '<p class="note" style="margin:0">Nenhum.</p>';
+  const saiTab = I.sairam.length ? `<div class="tbl-wrap"><table><thead><tr><th>Desligar</th><th class="n">Matrícula</th><th>Servidor</th><th>Cargo atual</th><th>Origem</th></tr></thead><tbody>${I.sairam.map((x, k) => `<tr>
+      <td><input type="checkbox" id="imp-sai-${k}" ${x.marcar ? 'checked' : ''} aria-label="Desligar ${esc(x.p.n)}"></td><td class="n">${esc(x.p.m)}</td><td><b>${esc(x.p.n)}</b> <span class="chip c-v">${esc(x.p.v)}</span></td>
+      <td>${esc(x.p.cl && C[x.p.cl] ? C[x.p.cl].nome : x.p.c)}<div class="note">${esc(U[x.p.u] ? U[x.p.u].nome : x.p.s)}</div></td>
+      <td class="note">${x.p.f === FOLHA_NOME[I.sis] ? 'folha anterior' : 'cadastrado no sistema; pode ainda não estar na folha'}</td></tr>`).join('')}</tbody></table></div>` : '<p class="note" style="margin:0">Nenhum.</p>';
+  const nCom = [...I.novos, ...I.mudou].filter(x => x.v === 'Comissionado').length;
+  box.innerHTML = `<div class="callout ok">PDF <b>${esc(I.arquivo)}</b> · folha ${esc(SIS_NOME[I.sis])} de <b>${esc(I.mes || '?')}</b>${I.emissao ? ` (emitida em ${esc(I.emissao)})` : ''} · ${I.total} servidores lidos.</div>
+    <div class="tiles">
+      <div class="tile ok"><span class="k">Entraram</span><span class="v">${I.novos.length}</span><span class="d">matrículas novas</span></div>
+      <div class="tile warn"><span class="k">Mudaram</span><span class="v">${I.mudou.length}</span><span class="d">cargo, lotação ou vínculo</span></div>
+      <div class="tile bad"><span class="k">Não constam</span><span class="v">${I.sairam.length}</span><span class="d">estão no sistema, não no PDF</span></div>
+      <div class="tile"><span class="k">Sem mudança</span><span class="v">${I.iguais.length}</span></div>
+    </div>
+    ${nCom ? `<p class="note" style="margin:0">Para os comissionados, confira o cargo da lei sugerido em cada linha. Os cargos de nome igual em outra secretaria ou genéricos (como “Coordenador(a)”) vêm sem sugestão.</p>` : ''}
+    <details class="imp-sec" ${I.novos.length ? 'open' : ''}><summary>Entraram (${I.novos.length})</summary>${tab(I.novos, 'novo')}</details>
+    <details class="imp-sec" ${I.mudou.length ? 'open' : ''}><summary>Mudaram (${I.mudou.length})</summary>${tab(I.mudou, 'mudou')}</details>
+    <details class="imp-sec" ${I.sairam.length ? 'open' : ''}><summary>Não constam no PDF (${I.sairam.length})</summary>
+      <p class="note" style="margin:0 0 8px">Marcados serão desligados (saem das contagens e ficam na busca com a data). Desmarque quem não deve sair.</p>${saiTab}</details>
+    <div class="toolbar"><button type="button" class="btn primary" id="imp-aplicar" ${I.novos.length + I.mudou.length + I.sairam.length ? '' : 'disabled'}>Aplicar atualização da folha</button><button type="button" class="btn" id="imp-cancelar">Cancelar</button>
+      ${I.novos.length + I.mudou.length + I.sairam.length ? '' : '<span class="note">Nada a atualizar: o sistema já está igual a este PDF.</span>'}</div>`;
+  document.getElementById('imp-cancelar').addEventListener('click', () => { IMP = null; box.innerHTML = ''; });
+  document.getElementById('imp-aplicar').addEventListener('click', aplicarImp);
+}
+async function aplicarImp(){
+  const I = IMP; if (!I) return;
+  const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR'), hist = FULL.historico, folha = FOLHA_NOME[I.sis], ref = `folha de ${I.mes || dt}`;
+  const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const enquadra = (p, x, selId) => {
+    if (x.v !== 'Comissionado') { delete p.cl; delete p.st; delete p.u; delete p.sym; return; }
+    const cl = val(selId);
+    if (cl && C[cl]) { p.cl = cl; p.u = C[cl]._u.id; p.st = cl === x.prop.cl ? (x.prop.st === 'nao' ? 'provavel' : x.prop.st) : 'exata'; delete p.sym; }
+    else { delete p.cl; p.st = 'nao'; p.u = lotUnitId(x.l) || x.prop.u; p.sym = symGuess(x.c); }
+  };
+  let nN = 0, nM = 0, nS = 0;
+  I.novos.forEach((x, k) => {
+    const p = {f:folha, m:x.m, n:x.n, adm:x.adm, c:x.c, l:x.l, fc:x.c, fl:x.l, v:x.v, s:lotFriendly(x.l), obs:x.vobs || `Incluído pela ${ref}.`};
+    enquadra(p, x, `imp-novo-${k}`);
+    FULL.pessoas.push(p); P[p.m] = p; nN++;
+    hist.unshift({d:hoje.toISOString(), s:I.sis, u:LOGIN, a:'Entrada (folha)', n:p.n, det:`${x.c} – ${x.l} · mat. ${x.m}`});
+  });
+  I.mudou.forEach((x, k) => {
+    const p = x.p, antes = `${p.fc || p.c} – ${p.fl || p.l}`;
+    delete p.ex;
+    Object.assign(p, {f:folha, n:x.n, adm:x.adm || p.adm, c:x.c, l:x.l, fc:x.c, fl:x.l, v:x.v, s:lotFriendly(x.l), obs:`Atualizado pela ${ref}; antes: ${antes}.`});
+    enquadra(p, x, `imp-mudou-${k}`); nM++;
+    hist.unshift({d:hoje.toISOString(), s:I.sis, u:LOGIN, a:'Mudança (folha)', n:p.n, det:`${antes} → ${x.c} – ${x.l}`});
+  });
+  I.iguais.forEach(x => { const p = x.p; p.n = x.n || p.n; if (x.adm) p.adm = x.adm; p.f = folha; if (p.fc == null) { p.fc = x.c; p.fl = x.l; } });
+  I.sairam.forEach((x, k) => {
+    if (!document.getElementById(`imp-sai-${k}`).checked) return;
+    const p = x.p; p.ex = dt; p.obs = `Desligado: não consta na ${ref}.`; nS++;
+    hist.unshift({d:hoje.toISOString(), s:I.sis, u:LOGIN, a:'Saída (folha)', n:p.n, det:`${p.cl && C[p.cl] ? C[p.cl].nome : p.c} – ${U[p.u] ? U[p.u].nome : p.s}`});
+  });
+  hist.unshift({d:hoje.toISOString(), s:I.sis, u:LOGIN, a:'Importação da folha', n:`Folha ${SIS_NOME[I.sis]} – ${I.mes}`, det:`${I.total} servidores no PDF · ${nN} entradas · ${nM} mudanças · ${nS} saídas`});
+  FULL.importacoes.push({sis:I.sis, mes:I.mes, emissao:I.emissao, d:hoje.toISOString(), u:LOGIN, total:I.total, entradas:nN, mudancas:nM, saidas:nS});
+  FULL.pessoas.sort((a, b) => a.n.localeCompare(b.n, 'pt-BR'));
+  FULL.atualizado = hoje.toISOString(); FULL._rascunho = true;
+  lsSet(DRAFT_KEY, JSON.stringify(await encryptData()));
+  IMP = null; refreshAll();
+  impBox().innerHTML = `<div class="callout ok">Folha ${esc(SIS_NOME[I.sis])} de ${esc(I.mes)} aplicada: ${nN} entrada${nN !== 1 ? 's' : ''}, ${nM} mudança${nM !== 1 ? 's' : ''}, ${nS} saída${nS !== 1 ? 's' : ''}. Para valer para todos, baixe o <b>dados.enc</b> abaixo e substitua no GitHub.</div>`;
 }
 
 /* ================= Painel de ferramentas ================= */
@@ -1268,7 +1509,7 @@ function renderTools(){
   const dl = document.getElementById('dl-dados');
   if (dl) dl.addEventListener('click', async () => download('dados.enc', JSON.stringify(await encryptData())));
   const ds = document.getElementById('discard');
-  if (ds) ds.addEventListener('click', async () => { lsSet(DRAFT_KEY, null); const r = await fetch('dados.enc', {cache:'no-store'}); D = await decryptData(await r.json()); refreshAll(); });
+  if (ds) ds.addEventListener('click', async () => { lsSet(DRAFT_KEY, null); const r = await fetch('dados.enc', {cache:'no-store'}); setFull(await decryptData(await r.json())); refreshAll(); });
   document.getElementById('user-list').innerHTML = USERS.usuarios.map(u => `<span class="chip c-v">${esc(u.login)}${u.login === LOGIN ? ' (você)' : ''}</span>
     ${u.login !== LOGIN ? `<button type="button" class="btn small" data-rm="${esc(u.login)}">remover</button>` : ''}`).join(' ');
   document.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
@@ -1295,23 +1536,11 @@ document.getElementById('gerir-btn').addEventListener('click', () => { const g =
 document.getElementById('gerir-fechar').addEventListener('click', fecharGerir);
 document.querySelectorAll('[data-acao]').forEach(b => b.addEventListener('click', () => selAcao(b.dataset.acao)));
 document.getElementById('g-form').addEventListener('submit', submitGForm);
-document.getElementById('codes-q').addEventListener('input', renderCodes);
 document.getElementById('logout').addEventListener('click', logout);
 document.getElementById('user-form').addEventListener('submit', saveUser);
 async function readTxt(file){ let t = await file.text(); if (t.includes('�')) t = new TextDecoder('windows-1252').decode(await file.arrayBuffer()); return t; }
-document.getElementById('txt-file').addEventListener('change', async ev => {
-  const f = ev.target.files[0]; if (!f) return;
-  PREVIEW = parseTxt(await readTxt(f)); renderPreview();
-});
-document.getElementById('txt-reman').addEventListener('change', async ev => {
-  const f = ev.target.files[0]; if (!f) return;
-  PREVIEW = parseTxt(await readTxt(f), 'reman'); renderPreview();
-});
-document.getElementById('txt-alt').addEventListener('change', async ev => {
-  const f = ev.target.files[0]; if (!f) return;
-  PREVIEW = parseAlt(await readTxt(f)); renderPreview();
-});
-
+document.querySelectorAll('[data-sis]').forEach(b => b.addEventListener('click', () => setSis(b.dataset.sis)));
+document.getElementById('imp-file').addEventListener('change', async ev => { const f = ev.target.files[0]; if (f) await lerPdf(f); ev.target.value = ''; });
 </script>
 </body>
 </html>
