@@ -152,6 +152,8 @@ code{font-size:12.5px}
 .acoes{display:flex;flex-wrap:wrap;gap:8px}
 .acoes button{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:600;font-size:14px}
 .acoes button:hover{border-color:var(--accent)}
+.acoes button.acao-del{color:var(--bad);border-color:var(--bad)}
+.acoes button.acao-del[aria-selected="true"]{background:var(--bad);color:var(--surface)}
 .acoes button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
 .gform{display:grid;gap:12px}
 .g-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;align-items:start}
@@ -213,6 +215,7 @@ details.users summary{cursor:pointer;font-weight:600}
       <button type="button" role="tab" data-acao="nomear">Nomear ou contratar</button>
       <button type="button" role="tab" data-acao="exonerar">Exonerar</button>
       <button type="button" role="tab" data-acao="renomear">Renomear secretaria</button>
+      <button type="button" role="tab" data-acao="excluir" class="acao-del">Excluir</button>
     </div>
     <form id="g-form" class="gform" novalidate></form>
     <div id="g-msg" role="status"></div>
@@ -541,6 +544,13 @@ function renderGForm(){
   else if (ACAO === 'exonerar') f.innerHTML = `<div class="g-grid">
       ${fld('g-busca', 'Nome ou matrícula', '<input id="g-busca" type="search" autocomplete="off" placeholder="Digite para buscar">')}
     </div><div id="g-lista" class="g-lista"></div>${btn('Exonerar selecionado')}`;
+  else if (ACAO === 'excluir') f.innerHTML = `<div class="g-grid">
+      ${fld('g-oque', 'O que excluir', `<select id="g-oque"><option value="unid">Secretaria</option><option value="cargo">Cargo</option><option value="sym">Símbolo incluído no sistema</option><option value="pes">Servidor cadastrado no sistema</option></select>`)}
+      <div id="g-x-unid" class="g-sub">${fld('g-uni', 'Secretaria', `<select id="g-uni">${unitOpts(uid0)}</select>`)}</div>
+      <div id="g-x-cargo" class="g-sub" hidden>${fld('g-uni2', 'Secretaria', `<select id="g-uni2">${unitOpts(uid0)}</select>`)}${fld('g-cargo2', 'Cargo', '<select id="g-cargo2"></select>')}</div>
+      <div id="g-x-sym" class="g-sub" hidden>${fld('g-symx', 'Símbolo', `<select id="g-symx">${Object.keys(FULL.simbolos || {}).map(sy => `<option value="${esc(sy)}">${esc(sy)} – ${brl(symVal(sy))}</option>`).join('') || '<option value="">Nenhum símbolo incluído no sistema</option>'}</select>`, 'Só os símbolos incluídos por você; os da Lei 230/2026 não podem ser excluídos.')}</div>
+      <div id="g-x-pes" class="g-sub" hidden>${fld('g-pesx', 'Servidor', `<select id="g-pesx">${D.pessoas.filter(p => p.f === 'Atualização').map(p => `<option value="${esc(p.m)}">${esc(p.n)} · mat. ${esc(p.m)}${p.ex ? ' (desligado)' : ''}</option>`).join('') || '<option value="">Nenhum servidor cadastrado no sistema</option>'}</select>`, 'Só quem foi cadastrado pelo sistema (por engano, por exemplo). Quem vem da folha sai pela exoneração ou pela importação do PDF.')}</div>
+    </div><div id="g-xinfo" class="callout" hidden></div><div class="toolbar"><button type="submit" class="btn primary">Excluir</button></div>`;
   else if (ACAO === 'renomear') f.innerHTML = `<div class="g-grid">
       ${fld('g-uni', 'Secretaria', `<select id="g-uni">${unitOpts(uid0)}</select>`)}
       ${fld('g-nome', 'Novo nome', '<input id="g-nome" autocomplete="off">')}
@@ -571,6 +581,25 @@ function wireGForm(){
     const upd = () => { $('g-novosym').hidden = $('g-sym').value !== '__novo'; };
     $('g-sym').addEventListener('change', upd);
     $('g-tipo').addEventListener('change', () => { if ($('g-tipo').value === 'Contrato') { $('g-sym').value = ''; upd(); } });
+  }
+  if (ACAO === 'excluir') {
+    const btn = document.querySelector('#g-form button[type=submit]');
+    const reset = () => { delete btn.dataset.conf; btn.textContent = 'Excluir'; btn.classList.remove('danger'); };
+    const info = () => {
+      reset();
+      const o = $('g-oque').value, box = $('g-xinfo'); let t = '';
+      ['unid', 'cargo', 'sym', 'pes'].forEach(k => $('g-x-' + k).hidden = k !== o);
+      if (o === 'unid') { const u = U[$('g-uni').value]; if (u) { const pes = u.cargos.reduce((a, c) => a + c.oc.length, 0) + u.ne.length;
+        t = pes ? `${u.nome} tem ${pes} servidor${pes > 1 ? 'es' : ''} ligado${pes > 1 ? 's' : ''}. Remaneje ou exonere antes de excluir.`
+          : `${u.nome} será excluída${u.cargos.length ? ` junto com ${u.cargos.length} cargo${u.cargos.length > 1 ? 's' : ''} (todos vagos)` : ''}.`; } }
+      if (o === 'cargo') { const c = C[$('g-cargo2').value]; if (c) t = c.oc.length ? `${c.nome} tem ${c.oc.length} ocupante${c.oc.length > 1 ? 's' : ''}: ${c.oc.map(m => P[m].n).join(', ')}. Com a exclusão, ${c.oc.length > 1 ? 'eles ficam' : 'fica'} como “sem correspondência” em ${unitOf(c).nome}.` : `${c.nome} (${code(c)}) será excluído. Está vago.`; }
+      if (o === 'sym') { const sy = $('g-symx').value; if (sy) { const us = FULL.unidades.flatMap(u => u.cargos.filter(c => c.simbolo === sy)); t = us.length ? `O símbolo ${sy} é usado por ${us.length} cargo${us.length > 1 ? 's' : ''} (${us.map(c => code(c)).join(', ')}). Exclua ou altere esses cargos antes.` : `O símbolo ${sy} não é usado por nenhum cargo e será excluído.`; } }
+      if (o === 'pes') { const p = P[$('g-pesx').value]; if (p) t = `O cadastro de ${p.n} (mat. ${p.m}) será apagado do sistema${p.cl && C[p.cl] && !p.ex ? `, liberando a vaga em ${C[p.cl].nome}` : ''}.`; }
+      box.hidden = !t; box.textContent = t;
+    };
+    const fillC2 = () => { $('g-cargo2').innerHTML = cargoOptsHtml($('g-uni2').value) || '<option value="">Esta secretaria não tem cargos</option>'; info(); };
+    ['g-oque', 'g-uni', 'g-cargo2', 'g-symx', 'g-pesx'].forEach(id => $(id).addEventListener('change', info));
+    $('g-uni2').addEventListener('change', fillC2); fillC2();
   }
   if (ACAO === 'valor') $('g-modo').addEventListener('change', () => { const c = $('g-modo').value === 'cargo'; $('g-porcargo').hidden = !c; $('g-porsym').hidden = c; });
   if (ACAO === 'exonerar') {
@@ -656,6 +685,31 @@ async function submitGForm(e){
     const n = await commit([{sit:'Exonerado', sel:p.m}], 'pelo sistema');
     return gOk(n, `<b>${esc(p.n)}</b> ${p.v === 'Contratado' ? 'teve o contrato encerrado' : 'foi exonerado(a)'}.`);
   }
+  if (ACAO === 'excluir') {
+    const o = v('g-oque'), btn = e.submitter || document.querySelector('#g-form button[type=submit]');
+    let alvo = '', nomeAlvo = '';
+    if (o === 'unid') { const u = U[v('g-uni')]; if (!u) return gErro('Escolha a secretaria.');
+      if (u.cargos.reduce((a, c) => a + c.oc.length, 0) + u.ne.length) return gErro('Esta secretaria ainda tem servidores ligados. Remaneje ou exonere antes de excluir.');
+      alvo = 'u:' + u.id; nomeAlvo = u.nome; }
+    if (o === 'cargo') { const c = C[v('g-cargo2')]; if (!c) return gErro('Escolha o cargo.'); alvo = 'c:' + c.id; nomeAlvo = c.nome; }
+    if (o === 'sym') { const sy = v('g-symx'); if (!sy) return gErro('Não há símbolo incluído para excluir.');
+      if (FULL.unidades.some(u => u.cargos.some(c => c.simbolo === sy))) return gErro(`O símbolo ${sy} ainda é usado por cargos.`);
+      alvo = 's:' + sy; nomeAlvo = 'símbolo ' + sy; }
+    if (o === 'pes') { const p = P[v('g-pesx')]; if (!p) return gErro('Escolha o servidor.'); alvo = 'p:' + p.m; nomeAlvo = p.n; }
+    if (btn.dataset.conf !== alvo) { btn.dataset.conf = alvo; btn.textContent = `Confirmar exclusão de ${nomeAlvo}`; btn.classList.add('danger'); return; }
+    const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR'); let det = '';
+    if (o === 'unid') { const u = U[alvo.slice(2)]; FULL.unidades = FULL.unidades.filter(x => x !== u); det = `Secretaria excluída · código ${code(u)}${u.cargos.length ? ` · com ${u.cargos.length} cargo(s)` : ''}`; }
+    if (o === 'cargo') { const c = C[alvo.slice(2)], u = unitOf(c);
+      FULL.pessoas.forEach(p => { if (p.cl === c.id) { delete p.cl; p.st = 'nao'; p.u = u.id; p.sym = c.simbolo || symGuess(p.c); if (!p.ex) p.obs = `O cargo ${c.nome} foi excluído em ${dt}; aguardando novo enquadramento.`; } });
+      u.cargos.splice(u.cargos.indexOf(c), 1); det = `Cargo excluído · ${code(c)} · ${u.nome}${c.oc.length ? ` · ${c.oc.length} ocupante(s) ficaram sem correspondência` : ''}`; }
+    if (o === 'sym') { const sy = alvo.slice(2); delete FULL.simbolos[sy]; delete FULL.valores[sy]; delete FULL.valoresData[sy]; det = `Símbolo ${sy} excluído`; }
+    if (o === 'pes') { const m = alvo.slice(2), p = P[m]; FULL.pessoas = FULL.pessoas.filter(x => x !== p); det = `Cadastro apagado · mat. ${m}`; }
+    FULL.historico.unshift({d:hoje.toISOString(), s:SIS, u:LOGIN, a:'Exclusão', n:nomeAlvo, det});
+    FULL.atualizado = hoje.toISOString(); FULL._rascunho = true; lsSet(DRAFT_KEY, JSON.stringify(await encryptData()));
+    if (o === 'unid' && location.hash === '#sec-' + alvo.slice(2)) location.hash = 'painel';
+    refreshAll();
+    return gOk(1, `<b>${esc(nomeAlvo)}</b> excluído(a).`);
+  }
   if (ACAO === 'renomear') {
     const u = U[v('g-uni')], nm = v('g-nome').replace(/\s+/g, ' ');
     if (!u) return gErro('Escolha a secretaria.');
@@ -672,7 +726,7 @@ function historico(){
   if (!H.length) return `<section class="card" style="display:grid;gap:8px"><h2>Histórico de movimentações</h2><p class="note" style="margin:0">Nenhuma nomeação ou exoneração registrada ainda. Use “Atualizar por arquivo TXT” acima.</p></section>`;
   return `<section class="card" style="display:grid;gap:12px"><div class="sectionhead"><h2>Histórico de movimentações</h2><span class="sub">${H.length} registro${H.length>1?'s':''}</span></div>
     <div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Ação</th><th>Servidor</th><th>Cargo e órgão</th><th>Usuário</th></tr></thead>
-    <tbody>${H.slice(0,200).map(h => `<tr><td class="n">${new Date(h.d).toLocaleString('pt-BR')}</td><td><span class="chip ${h.a==='Exoneração'||h.a==='Fim de contrato'?'c-exc':h.a==='Remanejamento'?'c-prov':h.a==='Alteração'?'c-v':'c-ok'}">${esc(h.a)}</span></td><td>${esc(h.n)}</td><td>${esc(h.det)}</td><td>${esc(h.u)}</td></tr>`).join('')}</tbody></table></div></section>`;
+    <tbody>${H.slice(0,200).map(h => `<tr><td class="n">${new Date(h.d).toLocaleString('pt-BR')}</td><td><span class="chip ${h.a==='Exoneração'||h.a==='Fim de contrato'||h.a==='Exclusão'||h.a==='Saída (folha)'?'c-exc':h.a==='Remanejamento'?'c-prov':h.a==='Alteração'?'c-v':'c-ok'}">${esc(h.a)}</span></td><td>${esc(h.n)}</td><td>${esc(h.det)}</td><td>${esc(h.u)}</td></tr>`).join('')}</tbody></table></div></section>`;
 }
 
 /* ---------- Saúde ---------- */
