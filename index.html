@@ -213,6 +213,7 @@ details.users summary{cursor:pointer;font-weight:600}
       <button type="button" role="tab" data-acao="cargo">Criar cargo</button>
       <button type="button" role="tab" data-acao="valor">Alterar valor de cargo</button>
       <button type="button" role="tab" data-acao="nomear">Nomear ou contratar</button>
+      <button type="button" role="tab" data-acao="remanejar">Remanejar</button>
       <button type="button" role="tab" data-acao="exonerar">Exonerar</button>
       <button type="button" role="tab" data-acao="renomear">Renomear secretaria</button>
       <button type="button" role="tab" data-acao="excluir" class="acao-del">Excluir</button>
@@ -541,6 +542,13 @@ function renderGForm(){
       ${fld('g-uni', 'Secretaria', `<select id="g-uni">${unitOpts(uid0)}</select>`)}
       ${fld('g-cargo', 'Cargo', '<select id="g-cargo"></select>', 'O vínculo segue o tipo do cargo: comissionado ou contrato.')}
     </div><div id="g-info" class="note"></div>${btn('Nomear / contratar')}`;
+  else if (ACAO === 'remanejar') f.innerHTML = `<div class="g-grid">
+      ${fld('g-busca', 'Servidor (nome ou matrícula)', '<input id="g-busca" type="search" autocomplete="off" placeholder="Digite para buscar">')}
+    </div><div id="g-lista" class="g-lista"></div>
+    <div class="g-grid">
+      ${fld('g-uni', 'Secretaria de destino', `<select id="g-uni">${['pref', 'saude'].map(sy => `<optgroup label="${SIS_NOME[sy]}">${FULL.unidades.filter(u => u.sis === sy).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(u => `<option value="${u.id}" ${u.id === uid0 ? 'selected' : ''}>${esc(u.nome)} (${code(u)})</option>`).join('')}</optgroup>`).join('')}</select>`, 'Pode ser do outro sistema também.')}
+      ${fld('g-cargo', 'Cargo de destino', '<select id="g-cargo"></select>', 'Só aparecem cargos do mesmo vínculo do servidor.')}
+    </div><div id="g-info" class="note"></div><div class="toolbar"><button type="submit" class="btn primary">Remanejar</button></div>`;
   else if (ACAO === 'exonerar') f.innerHTML = `<div class="g-grid">
       ${fld('g-busca', 'Nome ou matrícula', '<input id="g-busca" type="search" autocomplete="off" placeholder="Digite para buscar">')}
     </div><div id="g-lista" class="g-lista"></div>${btn('Exonerar selecionado')}`;
@@ -573,7 +581,7 @@ function wireGForm(){
     if (c && c.vagas === 0) t += ` Atenção: este cargo não tem vaga livre (${c.oc.length} de ${c.qtd} ocupadas).`;
     info.textContent = t.trim();
   };
-  if ($('g-uni') && $('g-cargo')) { $('g-uni').addEventListener('change', fillCargos); $('g-cargo').addEventListener('change', nomInfo); fillCargos(); }
+  if ($('g-uni') && $('g-cargo') && ACAO !== 'remanejar') { $('g-uni').addEventListener('change', fillCargos); $('g-cargo').addEventListener('change', nomInfo); fillCargos(); }
   if ($('g-mat')) $('g-mat').addEventListener('input', nomInfo);
   if ($('g-nat')) $('g-nat').addEventListener('change', () => { $('g-outra-box').hidden = $('g-nat').value !== '__outra'; });
   if (ACAO === 'secretaria') { let tocado = false; $('g-cod').addEventListener('input', () => tocado = true); $('g-nome').addEventListener('input', () => { if (!tocado) $('g-cod').value = $('g-nome').value.trim() ? sugereCodigo($('g-nome').value) : ''; }); }
@@ -602,6 +610,44 @@ function wireGForm(){
     $('g-uni2').addEventListener('change', fillC2); fillC2();
   }
   if (ACAO === 'valor') $('g-modo').addEventListener('change', () => { const c = $('g-modo').value === 'cargo'; $('g-porcargo').hidden = !c; $('g-porsym').hidden = c; });
+  if (ACAO === 'remanejar') {
+    const pessoa = () => { const r = document.querySelector('input[name="g-pes"]:checked'); return r ? P[r.value] : null; };
+    const fillCargo = () => {
+      const p = pessoa(), u = U[$('g-uni').value];
+      if (!u) return;
+      const ok = c => !p || vincDoCargo(c) === p.v;
+      const opts = u.cargos.filter(ok).map(c => `<option value="${c.id}">${esc(c.nome)}${c.tipo ? ' [' + c.tipo.toLowerCase() + ']' : ''} – ${code(c)} · ${c.vagas} vaga${c.vagas !== 1 ? 's' : ''}</option>`).join('');
+      const nomeAtual = p && p.cl && C[p.cl] ? C[p.cl].nome : '';
+      const podeCriar = u.auto && p && p.v !== 'Comissionado' && nomeAtual && !u.cargos.some(c => norm(c.nome) === norm(nomeAtual));
+      const soLot = (podeCriar ? `<option value="__novo">Criar “${esc(nomeAtual)}” nesta unidade</option>` : '') + (p && p.v !== 'Comissionado' ? '<option value="__lot">Sem cargo: mudar só a lotação</option>' : '');
+      $('g-cargo').innerHTML = opts + soLot || '<option value="">Nenhum cargo compatível nesta secretaria</option>';
+      // sugere o cargo de mesmo nome do atual; senão, o primeiro com vaga
+      const atual = p && p.cl && C[p.cl] ? norm(C[p.cl].nome) : null, lista = u.cargos.filter(ok);
+      const pre = (atual && lista.find(c => norm(c.nome) === atual && c.id !== p.cl)) || lista.find(c => c.vagas > 0 || u.auto);
+      if (podeCriar) $('g-cargo').value = '__novo'; else if (pre) $('g-cargo').value = pre.id; else if (soLot && !lista.length) $('g-cargo').value = '__lot';
+      info();
+    };
+    const info = () => {
+      const p = pessoa(), u = U[$('g-uni').value], c = C[$('g-cargo').value]; let t = '';
+      if (p) {
+        t = `${p.n} (${p.v.toLowerCase()}) está em ${p.cl && C[p.cl] ? C[p.cl].nome + ' – ' : ''}${U[p.u] ? U[p.u].nome : p.s}.`;
+        if (c && c.vagas === 0) t += ` Atenção: o cargo de destino não tem vaga livre.`;
+        if (u && u.sis !== SIS) t += ` O destino é do sistema ${SIS_NOME[u.sis]}: o servidor passará a aparecer lá.`;
+        if (p.cl && c && p.cl === c.id) t += ' Ele já ocupa esse cargo.';
+      }
+      $('g-info').textContent = t;
+    };
+    const lista = () => {
+      const t = $('g-busca').value.trim(), nt = norm(t).split(/\s+/).filter(Boolean);
+      const ps = !t ? [] : D.pessoas.filter(p => !p.ex && (/^\d+$/.test(t) ? p.m.includes(t) : nt.every(w => norm(p.n).includes(w)))).slice(0, 30);
+      $('g-lista').innerHTML = !t ? '<span class="note">Digite parte do nome ou a matrícula. Aparecem os servidores ativos deste sistema.</span>'
+        : ps.length ? ps.map((p, i) => `<label class="g-op"><input type="radio" name="g-pes" value="${esc(p.m)}" ${i === 0 ? 'checked' : ''}> <span><b>${esc(p.n)}</b> · ${esc(p.v)} · mat. ${esc(p.m)}<br><span class="note">${esc(p.cl && C[p.cl] ? C[p.cl].nome : p.c)} – ${esc(U[p.u] ? U[p.u].nome : p.s)}</span></span></label>`).join('')
+        : '<span class="note">Ninguém encontrado entre os servidores ativos deste sistema.</span>';
+      document.querySelectorAll('input[name="g-pes"]').forEach(r => r.addEventListener('change', fillCargo));
+      fillCargo();
+    };
+    $('g-busca').addEventListener('input', lista); $('g-uni').addEventListener('change', fillCargo); $('g-cargo').addEventListener('change', info); lista();
+  }
   if (ACAO === 'exonerar') {
     const lista = () => {
       const t = $('g-busca').value.trim(), nt = norm(t).split(/\s+/).filter(Boolean);
@@ -677,6 +723,34 @@ async function submitGForm(e){
     if (it.mover && P[it.mover].cl === c.id && P[it.mover].st !== 'nao') return gErro(`${nome} já ocupa este cargo.`);
     const n = await commit([it], 'pelo sistema');
     return gOk(n, `<b>${esc(nome)}</b> ${it.mover ? 'remanejado(a) para' : tv === 'Contratado' ? 'contratado(a) como' : 'nomeado(a) como'} ${esc(c.nome)} – ${esc(unitOf(c).nome)}.`);
+  }
+  if (ACAO === 'remanejar') {
+    const sel = document.querySelector('input[name="g-pes"]:checked'); if (!sel) return gErro('Busque e selecione o servidor.');
+    const p = P[sel.value], u = U[v('g-uni')], cid = v('g-cargo');
+    if (!u) return gErro('Escolha a secretaria de destino.');
+    if (!cid) return gErro('Esta secretaria não tem cargo compatível com o vínculo do servidor.');
+    const outro = u.sis !== SIS ? ` O servidor agora aparece no sistema ${SIS_NOME[u.sis]}.` : '';
+    if (cid === '__lot') {
+      if (p.u === u.id && !p.cl) return gErro(`${p.n} já está lotado(a) em ${u.nome}.`);
+      const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR'), antes = `${p.cl && C[p.cl] ? C[p.cl].nome + ' – ' : ''}${U[p.u] ? U[p.u].nome : p.s}`;
+      delete p.cl; delete p.st; p.u = u.id; p.s = u.nome; p.l = 'Atualização pelo sistema'; p.obs = `Remanejado em ${dt}; antes: ${antes}.`;
+      FULL.historico.unshift({d:hoje.toISOString(), s:SIS, u:LOGIN, a:'Remanejamento', n:p.n, det:`${antes} → ${u.nome} (só lotação)`});
+      FULL.atualizado = hoje.toISOString(); FULL._rascunho = true; markPend(); if (u.sis !== SIS) { const s0 = SIS; SIS = u.sis; markPend(); SIS = s0; }
+      lsSet(DRAFT_KEY, JSON.stringify(await encryptData())); refreshAll();
+      return gOk(1, `<b>${esc(p.n)}</b> remanejado(a) para ${esc(u.nome)}.${outro}`);
+    }
+    if (cid === '__novo') {
+      const base = C[p.cl];
+      await commit([{alt:true, tipo:'novo', alvo:u.id, nome:base.nome, novo:{nome:base.nome, simbolo:'', v:null, qtd:1, tipo:base.tipo || (p.v === 'Efetivo' ? 'Efetivo' : 'Contrato'), obs:''}, desc:`Novo cargo em ${u.nome}: ${base.nome} (para remanejamento)`}], 'pelo sistema');
+      const nc = u.cargos[u.cargos.length - 1]; if (base.fc) nc.fc = base.fc;
+      const n = await commit([{sit:'Remanejado', psel:p.m, sel:nc.id}], 'pelo sistema');
+      return gOk(n, `<b>${esc(p.n)}</b> remanejado(a) para ${esc(nc.nome)} – ${esc(u.nome)} (cargo criado na unidade).${outro}`);
+    }
+    const c = C[cid]; if (!c) return gErro('Escolha o cargo de destino.');
+    if (p.cl === c.id && p.st !== 'nao') return gErro(`${p.n} já ocupa este cargo.`);
+    const n = await commit([{sit:'Remanejado', psel:p.m, sel:c.id}], 'pelo sistema');
+    if (u.sis !== SIS) { const s0 = SIS; SIS = u.sis; markPend(); SIS = s0; }
+    return gOk(n, `<b>${esc(p.n)}</b> remanejado(a) para ${esc(c.nome)} – ${esc(u.nome)}.${outro}`);
   }
   if (ACAO === 'exonerar') {
     const sel = document.querySelector('input[name="g-pes"]:checked'); if (!sel) return gErro('Busque e selecione o servidor.');
@@ -940,6 +1014,7 @@ function recompute(){
     if (p.v === 'Comissionado' && p.st === 'nao' && U[p.u]) U[p.u].ne.push(p.m);
   });
   FULL.unidades.forEach(u => {
+    if (u.auto) u.cargos.forEach(c => { c.qtd = c.oc.length; });   // unidades da folha: sem limite, acompanham a ocupação
     u.cargos.forEach(c => { const n = c.oc.length; c.ocup = Math.min(n, c.qtd); c.vagas = Math.max(c.qtd - n, 0); c.exced = Math.max(n - c.qtd, 0); c.valor = valorCargo(c); });
     const s = k => u.cargos.reduce((a, c) => a + c[k], 0);
     u.previstos = s('qtd'); u.ocupados = s('ocup'); u.vagas = s('vagas'); u.excedentes = s('exced'); u.n_nao = u.ne.length;
@@ -1489,6 +1564,7 @@ function syncSaude(rows, aplicar, dt){
       res.novosC.push(c);
     }
     const p = P[r.m];
+    if (p && /^Atualiza/.test(p.l || '') && !p.ex) return;   // remanejado no sistema e a folha não mudou: mantém
     if (!p || !c.id || p.cl !== c.id) {
       res.ligar++;
       if (aplicar && p) { p.cl = c.id; p.u = u.id; p.st = 'exata'; delete p.sym; }
