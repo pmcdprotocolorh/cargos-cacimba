@@ -276,7 +276,7 @@ function personCard(p){
   if (p.v === 'Comissionado' || (p.cl && C[p.cl])){
     const u = U[p.u];
     if (p.st === 'nao') lei = `<div><b>Na lei:</b> sem correspondência em ${esc(u.nome)}</div>`;
-    else lei = `<div><b>Na lei:</b> ${esc(C[p.cl].nome)} (${esc(simbLabel(C[p.cl]))}) – <a href="#sec-${u.id}">${esc(u.nome)}</a></div><div><b>Vencimento do cargo:</b> ${brl(C[p.cl].valor)}${notaValor(C[p.cl]) ? ` <span class="mut">(${esc(notaValor(C[p.cl]))})</span>` : ''}</div>`;
+    else lei = `<div><b>Na lei:</b> ${esc(C[p.cl].nome)} (${esc(simbLabel(C[p.cl]))}) – <a href="#sec-${u.id}">${esc(u.nome)}</a></div><div><b>Vencimento do cargo:</b> ${vfmt(C[p.cl].valor)}${notaValor(C[p.cl]) ? ` <span class="mut">(${esc(notaValor(C[p.cl]))})</span>` : ''}</div>`;
   }
   const chip = p.v === 'Comissionado' || (p.cl && C[p.cl]) ? ` <span class="chip ${STCLS[p.st]}">${STLABEL[p.st]}</span>` : '';
   return `<div class="res">
@@ -333,7 +333,7 @@ function overview(){
   </section>
 
   <section style="display:grid;gap:12px" aria-labelledby="h-lei">
-    <div class="sectionhead"><h2 id="h-lei">Cargos comissionados: lei × folha</h2><span class="sub">${T.comissionados_folha} comissionados na folha comparados com os ${T.previstos} cargos da lei</span></div>
+    <div class="sectionhead"><h2 id="h-lei">${SIS === 'saude' ? 'Cargos: estrutura × folha' : 'Cargos comissionados: lei × folha'}</h2><span class="sub">${T.comissionados_folha} servidores ligados a cargos, comparados com os ${T.previstos} cargos previstos</span></div>
     <div class="tiles">
       <div class="tile"><span class="k">Previstos na lei</span><span class="v">${T.previstos}</span><span class="d">${SIS === 'saude' ? 'Secretaria de Saúde (Lei 230/2026) e Hospital (Lei 147/2023)' : 'Anexo I da Lei 230/2026 e assessorias do art. 28 (Educação)'}${D.unidades.reduce((a, u) => a + u.cargos.filter(c => /criado/.test(c.nota || '')).reduce((b, c) => b + c.qtd, 0), 0) ? ', mais os cargos criados no sistema' : ''}</span></div>
       <div class="tile ok"><span class="k">Ocupados</span><span class="v">${T.ocupados}</span><span class="d">dentro da quantidade da lei</span></div>
@@ -425,7 +425,7 @@ function metrics(){
   const totVag = vag.reduce((a,u) => a + u.vagas, 0);
   const vagCards = vag.map(u => {
     const cs = u.cargos.filter(c => c.vagas > 0);
-    const rows = cs.map(c => `<div class="pl"><b>${esc(c.nome)}</b><span class="mut">${esc(simbLabel(c))} · ${brl(c.valor)} · ${c.vagas} vaga${c.vagas>1?'s':''}${c.oc.length?` (${c.oc.length} de ${c.qtd} ocupada${c.oc.length>1?'s':''})`:''}</span></div>`).join('');
+    const rows = cs.map(c => `<div class="pl"><b>${esc(c.nome)}</b><span class="mut">${esc(simbLabel(c))} · ${vfmt(c.valor)} · ${c.vagas} vaga${c.vagas>1?'s':''}${c.oc.length?` (${c.oc.length} de ${c.qtd} ocupada${c.oc.length>1?'s':''})`:''}</span></div>`).join('');
     return `<details class="exc vag"><summary><span class="sn">${esc(u.nome)}</span>
         <span class="chips"><span class="chip c-ok">${u.vagas} vaga${u.vagas>1?'s':''} em ${cs.length} cargo${cs.length>1?'s':''}</span>${(u.excedentes+u.n_nao)?`<span class="chip c-exc">${u.excedentes+u.n_nao} a realocar daqui</span>`:''}</span></summary>
         <div class="excbody"><div class="pls">${rows}</div><a href="#sec-${u.id}">Ver ${esc(u.nome)} cargo por cargo →</a></div></details>`;
@@ -479,7 +479,7 @@ async function excluirSecretaria(id){
   FULL.unidades = FULL.unidades.filter(x => x !== u);
   const hoje = new Date();
   (FULL.historico = FULL.historico || []).unshift({d:hoje.toISOString(), s:SIS, u:LOGIN, a:'Alteração', n:u.nome, det:`Secretaria excluída · código ${code(u)}`});
-  FULL.atualizado = hoje.toISOString(); FULL._rascunho = true;
+  FULL.atualizado = hoje.toISOString(); FULL._rascunho = true; markPend();
   lsSet(DRAFT_KEY, JSON.stringify(await encryptData()));
   location.hash = 'painel'; refreshAll();
 }
@@ -488,7 +488,7 @@ async function excluirSecretaria(id){
 let ACAO = null;
 const unitOpts = (sel) => D.unidades.slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(u => `<option value="${u.id}" ${u.id === sel ? 'selected' : ''}>${esc(u.nome)} (${code(u)})</option>`).join('');
 const cargoOptsHtml = (uid, filtro) => (U[uid] ? U[uid].cargos : []).filter(filtro || (() => true)).map(c =>
-  `<option value="${c.id}">${esc(c.nome)}${c.tipo === 'Contrato' ? ' [contrato]' : ''} – ${code(c)} · ${brl(c.valor)} · ${c.vagas} vaga${c.vagas !== 1 ? 's' : ''}</option>`).join('');
+  `<option value="${c.id}">${esc(c.nome)}${c.tipo ? ' [' + c.tipo.toLowerCase() + ']' : ''} – ${code(c)} · ${vfmt(c.valor)} · ${c.vagas} vaga${c.vagas !== 1 ? 's' : ''}</option>`).join('');
 const fld = (id, label, input, hint = '') => `<div class="fld"><label for="${id}">${label}</label>${input}${hint ? `<span class="note">${hint}</span>` : ''}</div>`;
 function abrirGerir(acao){
   const box = document.getElementById('gerir');
@@ -521,7 +521,7 @@ function renderGForm(){
       ${fld('g-lei', 'Lei de criação (opcional)', '<input id="g-lei" autocomplete="off" placeholder="Ex.: Lei Municipal nº 250/2026">')}
     </div>${btn('Criar secretaria')}`;
   else if (ACAO === 'cargo') f.innerHTML = `<div class="g-grid">
-      ${fld('g-tipo', 'Tipo do cargo', '<select id="g-tipo"><option value="Comissionado">Comissionado</option><option value="Contrato">Contrato</option></select>')}
+      ${fld('g-tipo', 'Tipo do cargo', '<select id="g-tipo"><option value="Comissionado">Comissionado</option><option value="Contrato">Contrato</option><option value="Efetivo">Efetivo</option></select>')}
       ${fld('g-uni', 'Secretaria', `<select id="g-uni">${unitOpts(uid0)}</select>`)}
       ${fld('g-nome', 'Nome do cargo', '<input id="g-nome" autocomplete="off" placeholder="Ex.: Coordenação de Tesouraria">')}
       ${fld('g-sym', 'Símbolo', `<select id="g-sym"><option value="">Sem símbolo (valor próprio)</option>${syms}<option value="__novo">Novo símbolo…</option></select>`)}
@@ -568,8 +568,8 @@ function wireGForm(){
     let t = '';
     if (m && !pm) t = `Matrícula nova: o servidor será cadastrado.`;
     if (pm && pm.ex) t = `${pm.n} foi desligado em ${pm.ex}; será reintegrado.`;
-    else if (pm && c && pm.v === (c.tipo === 'Contrato' ? 'Contratado' : 'Comissionado') && pm.cl) t = `${pm.n} já ocupa ${C[pm.cl] ? C[pm.cl].nome : pm.c} (${U[pm.u] ? U[pm.u].nome : pm.s}); será remanejado para o cargo escolhido.`;
-    else if (pm && c) t = `${pm.n} é ${pm.v.toLowerCase()}; será criado um vínculo ${c.tipo === 'Contrato' ? 'de contrato' : 'comissionado'} separado.`;
+    else if (pm && c && pm.v === vincDoCargo(c) && pm.cl) t = `${pm.n} já ocupa ${C[pm.cl] ? C[pm.cl].nome : pm.c} (${U[pm.u] ? U[pm.u].nome : pm.s}); será remanejado para o cargo escolhido.`;
+    else if (pm && c) t = `${pm.n} é ${pm.v.toLowerCase()}; será criado um vínculo ${vincDoCargo(c).toLowerCase()} separado.`;
     if (c && c.vagas === 0) t += ` Atenção: este cargo não tem vaga livre (${c.oc.length} de ${c.qtd} ocupadas).`;
     info.textContent = t.trim();
   };
@@ -580,7 +580,7 @@ function wireGForm(){
   if (ACAO === 'cargo') {
     const upd = () => { $('g-novosym').hidden = $('g-sym').value !== '__novo'; };
     $('g-sym').addEventListener('change', upd);
-    $('g-tipo').addEventListener('change', () => { if ($('g-tipo').value === 'Contrato') { $('g-sym').value = ''; upd(); } });
+    $('g-tipo').addEventListener('change', () => { if ($('g-tipo').value !== 'Comissionado') { $('g-sym').value = ''; upd(); } });
   }
   if (ACAO === 'excluir') {
     const btn = document.querySelector('#g-form button[type=submit]');
@@ -629,7 +629,7 @@ async function submitGForm(e){
     const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR');
     FULL.unidades.push({id, nome:nm, nome_lei: lei || `Criada no sistema em ${dt}`, grupo:natureza, cargos:[], criada:dt, sis:SIS});
     (FULL.historico = FULL.historico || []).unshift({d:hoje.toISOString(), s:SIS, u:LOGIN, a:'Alteração', n:nm, det:`Nova secretaria criada · código ${id.toUpperCase()} · ${natureza}${lei ? ' · ' + lei : ''}`});
-    FULL.atualizado = hoje.toISOString(); FULL._rascunho = true; lsSet(DRAFT_KEY, JSON.stringify(await encryptData())); refreshAll();
+    FULL.atualizado = hoje.toISOString(); FULL._rascunho = true; markPend(); lsSet(DRAFT_KEY, JSON.stringify(await encryptData())); refreshAll();
     return gOk(1, `<b>${esc(nm)}</b> foi criada com o código <code>${id.toUpperCase()}</code>. Agora use “Criar cargo” para incluir os cargos dela.`);
   }
   if (ACAO === 'cargo') {
@@ -669,7 +669,7 @@ async function submitGForm(e){
     if (raw && !isMat(raw)) return gErro('Matrícula inválida: use só números.');
     if (!c) return gErro('Escolha o cargo.');
     if (!nome) return gErro('Informe o nome do servidor.');
-    const tv = c.tipo === 'Contrato' ? 'Contratado' : 'Comissionado';
+    const tv = vincDoCargo(c);
     const it = {sit:'Nomeado', sel:c.id, mat, nome};
     if (pm && !pm.ex && pm.v === tv) it.mover = pm.m;
     else if (pm && !pm.ex) it.de = pm.m;
@@ -705,7 +705,7 @@ async function submitGForm(e){
     if (o === 'sym') { const sy = alvo.slice(2); delete FULL.simbolos[sy]; delete FULL.valores[sy]; delete FULL.valoresData[sy]; det = `Símbolo ${sy} excluído`; }
     if (o === 'pes') { const m = alvo.slice(2), p = P[m]; FULL.pessoas = FULL.pessoas.filter(x => x !== p); det = `Cadastro apagado · mat. ${m}`; }
     FULL.historico.unshift({d:hoje.toISOString(), s:SIS, u:LOGIN, a:'Exclusão', n:nomeAlvo, det});
-    FULL.atualizado = hoje.toISOString(); FULL._rascunho = true; lsSet(DRAFT_KEY, JSON.stringify(await encryptData()));
+    FULL.atualizado = hoje.toISOString(); FULL._rascunho = true; markPend(); lsSet(DRAFT_KEY, JSON.stringify(await encryptData()));
     if (o === 'unid' && location.hash === '#sec-' + alvo.slice(2)) location.hash = 'painel';
     refreshAll();
     return gOk(1, `<b>${esc(nomeAlvo)}</b> excluído(a).`);
@@ -782,8 +782,8 @@ function detail(id){
     const occ = c.oc.length ? c.oc.map(m => { const p = P[m];
         return `<div class="o"><span>${esc(p.n)}</span><span class="mut">· ${esc(p.c)}</span>${p.st==='provavel'?' <span class="chip c-prov">provável</span>':''}</div>`; }).join('')
       : '<span class="mut">ninguém</span>';
-    return `<tr><td><code>${code(c)}</code></td><td><div>${esc(c.nome)}${c.tipo === 'Contrato' ? ' <span class="chip c-v">Contrato</span>' : ''}</div>${c.nota?`<div class="note">${esc(c.nota)}</div>`:''}</td>
-      <td>${esc(simbLabel(c))}</td><td class="n">${brl(c.valor)}${notaValor(c) ? ` <span class="info" title="${esc(notaValor(c))}">*</span>` : ''}</td><td class="n">${c.qtd}</td><td class="n">${c.oc.length}</td>
+    return `<tr><td><code>${code(c)}</code></td><td><div>${esc(c.nome)}${c.tipo ? ` <span class="chip c-v">${esc(c.tipo)}</span>` : ''}</div>${c.nota?`<div class="note">${esc(c.nota)}</div>`:''}</td>
+      <td>${esc(simbLabel(c))}</td><td class="n">${vfmt(c.valor)}${notaValor(c) ? ` <span class="info" title="${esc(notaValor(c))}">*</span>` : ''}</td><td class="n">${c.qtd}</td><td class="n">${c.oc.length}</td>
       <td><span class="chip ${cls}">${lab}</span></td><td><div class="occ">${occ}</div></td></tr>`;
   }).join('') || (u.cargos.length ? `<tr><td colspan="8" class="note">Nenhum cargo neste filtro.</td></tr>`
     : `<tr><td colspan="8" class="note">Esta secretaria ainda não tem cargos. Crie pelo TXT de alterações, por exemplo: <code>${code(u)}; NOVO; Secretário(a) Municipal; SEC; 1</code></td></tr>`);
@@ -804,14 +804,14 @@ function detail(id){
       <div class="tile bad"><span class="k">Sem correspondência</span><span class="v">${u.n_nao}</span></div>
     </div>
     <section class="card" style="display:grid;gap:12px">
-      <div class="sectionhead"><h3>Cargos da lei</h3>
+      <div class="sectionhead"><h3>${u.auto ? 'Cargos da unidade' : 'Cargos da lei'}</h3>
         <div class="toolbar seg" role="group" aria-label="Filtrar cargos">
           <button type="button" data-f="todos" aria-pressed="${filtro==='todos'}">Todos</button>
           <button type="button" data-f="vagos" aria-pressed="${filtro==='vagos'}">Com vagas</button>
           <button type="button" data-f="exc" aria-pressed="${filtro==='exc'}">Excedidos</button>
         </div></div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Código</th><th>Cargo</th><th>Símbolo</th><th class="n">Vencimento</th><th class="n">Qtd. lei</th><th class="n">Na folha</th><th>Situação</th><th>Ocupantes (cargo na folha)</th></tr></thead>
+        <thead><tr><th>Código</th><th>Cargo</th><th>Símbolo</th><th class="n">Vencimento</th><th class="n">${u.auto ? 'Qtd.' : 'Qtd. lei'}</th><th class="n">Na folha</th><th>Situação</th><th>Ocupantes (cargo na folha)</th></tr></thead>
         <tbody>${rows}</tbody></table></div>
     </section>
     ${u.ne.length ? `<section class="card" style="display:grid;gap:12px"><h3>Comissionados sem correspondência na lei (${u.ne.length})</h3>
@@ -859,6 +859,8 @@ function notaValor(c){
   return SAL_NOTA[c.simbolo] || '';
 }
 const code = x => x.id.toUpperCase();
+const vfmt = v => v ? brl(v) : '—';
+const vincDoCargo = c => c.tipo === 'Contrato' ? 'Contratado' : c.tipo === 'Efetivo' ? 'Efetivo' : 'Comissionado';
 const simbLabel = c => /^R\$/.test(c.simbolo) ? 'Lei 147' : (c.simbolo || '—');
 
 /* ================= Dados, criptografia e login ================= */
@@ -867,7 +869,10 @@ const ITER_DEFAULT = 200000;
 const b64 = buf => { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
 const unb64 = s => Uint8Array.from(atob(s), ch => ch.charCodeAt(0));
 const enc = new TextEncoder(), dec = new TextDecoder();
-const DRAFT_KEY = 'cargos-lei230-rascunho';
+const DRAFT_KEY = 'cargos-lei230-rascunho', PEND_KEY = 'cargos-lei230-pendentes';
+const getPend = () => { try { const a = JSON.parse(lsGet(PEND_KEY) || 'null'); return Array.isArray(a) ? a : ['pref', 'saude']; } catch(_) { return ['pref', 'saude']; } };
+function markPend(){ const a = new Set(lsGet(PEND_KEY) ? getPend() : []); a.add(SIS); lsSet(PEND_KEY, JSON.stringify([...a])); }
+function clearDraft(){ lsSet(DRAFT_KEY, null); lsSet(PEND_KEY, null); }
 
 async function kekFrom(senha, salt, iter){
   const base = await crypto.subtle.importKey('raw', enc.encode(senha), 'PBKDF2', false, ['deriveKey']);
@@ -892,8 +897,8 @@ async function decryptData(obj){
 function serializable(){
   const F = FULL;
   return {fonte:F.fonte, atualizado:F.atualizado, historico:F.historico || [], valores:F.valores || {}, valoresData:F.valoresData || {}, simbolos:F.simbolos || {}, importacoes:F.importacoes || [],
-    unidades:F.unidades.map(u => ({id:u.id, nome:u.nome, nome_lei:u.nome_lei, grupo:u.grupo, sis:u.sis, ...(u.criada ? {criada:u.criada} : {}),
-      cargos:u.cargos.map(c => { const o = {id:c.id, nome:c.nome, simbolo:c.simbolo, qtd:c.qtd}; if (c.nota) o.nota = c.nota; if (c.v != null) { o.v = c.v; o.vd = c.vd; } if (c.tipo) o.tipo = c.tipo; return o; })})),
+    unidades:F.unidades.map(u => ({id:u.id, nome:u.nome, nome_lei:u.nome_lei, grupo:u.grupo, sis:u.sis, ...(u.criada ? {criada:u.criada} : {}), ...(u.lot ? {lot:u.lot, auto:true} : {}),
+      cargos:u.cargos.map(c => { const o = {id:c.id, nome:c.nome, simbolo:c.simbolo, qtd:c.qtd}; if (c.nota) o.nota = c.nota; if (c.v != null) { o.v = c.v; o.vd = c.vd; } if (c.tipo) o.tipo = c.tipo; if (c.fc) o.fc = c.fc; return o; })})),
     pessoas:F.pessoas};
 }
 async function encryptData(){
@@ -991,8 +996,8 @@ async function doLogin(e){
     // rascunho deste navegador mais novo que o arquivo publicado?
     const dr = lsGet(DRAFT_KEY);
     if (dr) {
-      try { const o = JSON.parse(dr); if ((o.atualizado || '') > (FULL.atualizado || '')) { setFull(await decryptData(o)); FULL._rascunho = true; } else lsSet(DRAFT_KEY, null); }
-      catch(_) { lsSet(DRAFT_KEY, null); }
+      try { const o = JSON.parse(dr); if ((o.atualizado || '') > (FULL.atualizado || '')) { setFull(await decryptData(o)); FULL._rascunho = true; } else clearDraft(); }
+      catch(_) { clearDraft(); }
     }
     document.getElementById('login-card').hidden = true;
     document.getElementById('app').hidden = false;
@@ -1282,7 +1287,7 @@ function applyItem(x, dt, hoje, hist, k, origem){
     return true;
   }
   const c = C[x.sel], u = unitOf(c);
-  const tv = c.tipo === 'Contrato' ? 'Contratado' : 'Comissionado';
+  const tv = vincDoCargo(c);
   const mv = x.sit === 'Remanejado' ? x.psel : x.mover;
   if (mv && P[mv].cl === c.id && P[mv].st !== 'nao') return false;   // já está nesse cargo
   let p = mv ? P[mv] : null, acao = tv === 'Contratado' ? 'Contratação' : 'Nomeação';
@@ -1305,7 +1310,7 @@ async function commit(items, origem){
   items.forEach((x, k) => { if (applyItem(x, dt, hoje, hist, k, origem)) n++; });
   hist.slice(0, hist.length - h0).forEach(h => { if (!h.s) h.s = SIS; });
   FULL.pessoas.sort((a, b) => a.n.localeCompare(b.n, 'pt-BR'));
-  FULL.atualizado = hoje.toISOString(); FULL._rascunho = true;
+  FULL.atualizado = hoje.toISOString(); FULL._rascunho = true; markPend();
   lsSet(DRAFT_KEY, JSON.stringify(await encryptData()));
   refreshAll();
   return n;
@@ -1414,11 +1419,13 @@ function symGuess(c){
   if (/^ASSESSOR III/.test(c)) return 'CC-8'; if (/^ASSESSOR II/.test(c)) return 'CC-7'; if (/^ASSESSOR I/.test(c)) return 'CC-6';
   if (/^COORD/.test(c)) return 'CC-4'; if (/^(DIRETOR|VICE-DIRETOR|CONTROLADOR)/.test(c)) return 'CC-3'; return '?';
 }
-const mesmo = (a, b) => { a = (a || '').trim(); b = (b || '').trim(); return a === b || (a.length >= 6 && b.length >= 6 && (a.startsWith(b) || b.startsWith(a))); };
+// lotações longas podem vir cortadas na margem do PDF: aceita prefixo só em textos longos
+const mesmo = (a, b) => { a = (a || '').trim(); b = (b || '').trim(); return a === b || (a.length >= 18 && b.length >= 18 && (a.startsWith(b) || b.startsWith(a))); };
+const mesmoC = (a, b) => (a || '').replace(/\s+/g, ' ').trim() === (b || '').replace(/\s+/g, ' ').trim();
 // proposta de cargo da lei para um comissionado da folha
 function propoeCargo(c, l, ignorar){
   // 1) alguém com o mesmo cargo e lotação na folha já foi enquadrado
-  const igual = FULL.pessoas.filter(p => p.m !== ignorar && p.v === 'Comissionado' && p.cl && C[p.cl] && C[p.cl]._u.sis === SIS && p.st !== 'nao' && mesmo(p.fc || p.c, c) && mesmo(p.fl || p.l, l));
+  const igual = FULL.pessoas.filter(p => p.m !== ignorar && p.v === 'Comissionado' && p.cl && C[p.cl] && C[p.cl]._u.sis === SIS && p.st !== 'nao' && mesmoC(p.fc || p.c, c) && mesmo(p.fl || p.l, l));
   const cont = {}; igual.forEach(p => cont[p.cl] = (cont[p.cl] || 0) + 1);
   const best = Object.entries(cont).sort((a, b) => b[1] - a[1])[0];
   const lu = lotUnitId(l);
@@ -1438,6 +1445,62 @@ function propoeCargo(c, l, ignorar){
   }
   return {cl:'', st:'nao', u:lu || (D.unidades[0] && D.unidades[0].id), por:''};
 }
+/* Saúde: cada lotação da folha (fora a de comissionados) vira uma unidade, e cada cargo da folha vira um cargo dela */
+const ACR = new Set(['psf','nasf','samu','peva','psb','acs','esf','tfd','pni','caps','ubs','aps','ts']);
+const ACENTOS = {saude:'saúde', nucleo:'núcleo', familia:'família', comunitarios:'comunitários', comunitario:'comunitário', consultorio:'consultório', dentario:'dentário', tecnico:'técnico',
+  medico:'médico', farmaceutico:'farmacêutico', servicos:'serviços', cirurgiao:'cirurgião', basica:'básica', atencao:'atenção', fisico:'físico', psicologo:'psicólogo', fonoaudiologa:'fonoaudióloga', fonoaudiolgo:'fonoaudiólogo', ambulancia:'ambulância', plantao:'plantão', vigilancia:'vigilância', nivel:'nível', medico2:''};
+function bonito(t){
+  return t.replace(/\s*-\s*/g, ' – ').replace(/\s*\/\s*/g, ' / ').replace(/\s+/g, ' ').trim().split(' ').map((w, i) => {
+    const lw = w.toLowerCase(), base = norm(lw).replace(/[^a-z]/g, '');
+    if (ACR.has(base)) return w.toUpperCase();
+    if (i > 0 && ['de','da','do','das','dos','e','a','o','para'].includes(lw)) return lw;
+    const acc = ACENTOS[base] && lw.replace(/[^a-zà-ú]/g, '') === base ? ACENTOS[base] : lw;
+    return acc.charAt(0).toUpperCase() + acc.slice(1);
+  }).join(' ').replace(/ \/ /g, '/');
+}
+function codigoLot(l){
+  const ws = norm(l).replace(/[^a-z ]/g, ' ').split(/\s+/).filter(w => w && !['secretaria','sec','municipal','de','da','do','das','dos','e','a','apoio'].includes(w));
+  const acr = ws.filter(w => ACR.has(w)), tail = ws.includes('efetivos') ? 'e' : ws.includes('contratos') ? 'c' : ws.includes('plantonistas') ? 'p' : '';
+  let base = acr.length ? acr.join('') + tail : ws.map(w => w[0]).join('');
+  if (base.length < 2) base = (base + 'un').slice(0, 2);
+  base = base.slice(0, 8); let c = base, k = 2;
+  while (U[c] || simbolos().some(x => x.toLowerCase() === c)) c = base + k++;
+  return c;
+}
+function syncSaude(rows, aplicar, dt){
+  const res = {novasU:[], novosC:[], ligar:0}, extraC = new Map(), tmpU = [];
+  const acharU = l => FULL.unidades.find(u => u.sis === 'saude' && u.lot && mesmo(u.lot, l)) || tmpU.find(u => mesmo(u.lot, l));
+  const cargosDe = u => [...(u.cargos || []), ...(extraC.get(u) || [])];
+  rows.forEach(r => {
+    const [v] = vinculoFolha(r.c, r.l, 'saude'); if (v === 'Comissionado') return;
+    const tipo = v === 'Efetivo' ? 'Efetivo' : 'Contrato';
+    let u = acharU(r.l);
+    if (!u) {
+      u = {lot:r.l, nome:bonito(r.l), grupo: tipo === 'Efetivo' ? 'Unidades de efetivos' : 'Unidades de contratados', sis:'saude', auto:true, cargos:[]};
+      if (aplicar) { u.id = codigoLot(r.l); u.nome_lei = `Lotação da folha do Fundo Municipal de Saúde · criada em ${dt}`; u.criada = dt; FULL.unidades.push(u); U[u.id] = u; u.ne = []; }
+      else tmpU.push(u);
+      res.novasU.push(u);
+    }
+    let c = cargosDe(u).find(x => x.fc ? mesmoC(x.fc, r.c) : norm(x.nome) === norm(bonito(r.c)));
+    if (!c) {
+      c = {nome:bonito(r.c), fc:r.c, simbolo:'', qtd:0, tipo, _lot:u.lot};
+      if (aplicar) { let k = u.cargos.length; while (C[`${u.id}-${k}`]) k++; c.id = `${u.id}-${k}`; c.nota = `Cargo da folha incluído em ${dt}.`; c.oc = []; c._u = u; u.cargos.push(c); C[c.id] = c; }
+      else extraC.set(u, [...(extraC.get(u) || []), c]);
+      res.novosC.push(c);
+    }
+    const p = P[r.m];
+    if (!p || !c.id || p.cl !== c.id) {
+      res.ligar++;
+      if (aplicar && p) { p.cl = c.id; p.u = u.id; p.st = 'exata'; delete p.sym; }
+    }
+  });
+  if (aplicar) {
+    // nas unidades da folha, a quantidade de cada cargo acompanha quantos servidores ativos o ocupam
+    const cont = {}; FULL.pessoas.forEach(p => { if (!p.ex && p.cl) cont[p.cl] = (cont[p.cl] || 0) + 1; });
+    FULL.unidades.filter(u => u.auto).forEach(u => u.cargos.forEach(c => { c.qtd = cont[c.id] || 0; }));
+  }
+  return res;
+}
 function analisarFolha(r, arquivo){
   const folha = FOLHA_NOME[SIS], noPdf = new Set(r.rows.map(x => x.m));
   const novos = [], mudou = [], iguais = [], sairam = [];
@@ -1447,7 +1510,7 @@ function analisarFolha(r, arquivo){
     const it = {...x, v, vobs};
     if (!p) { if (v === 'Comissionado') it.prop = propoeCargo(x.c, x.l); novos.push(it); return; }
     it.p = p;
-    const mudouCargo = !mesmo(p.fc != null ? p.fc : p.c, x.c) || !mesmo(p.fl != null ? p.fl : p.l, x.l);
+    const mudouCargo = !mesmoC(p.fc != null ? p.fc : p.c, x.c) || !mesmo(p.fl != null ? p.fl : p.l, x.l);
     if (p.ex || mudouCargo || p.v !== v) {
       it.motivo = p.ex ? `estava desligado (${p.ex})` : p.v !== v ? `vínculo ${p.v.toLowerCase()} → ${v.toLowerCase()}` : 'cargo ou lotação mudou';
       if (v === 'Comissionado') {
@@ -1460,7 +1523,8 @@ function analisarFolha(r, arquivo){
     iguais.push(it);
   });
   D.pessoas.forEach(p => { if (!p.ex && !noPdf.has(p.m)) sairam.push({p, marcar: p.f === folha}); });
-  return {arquivo, sis:SIS, mes:r.mes, emissao:r.emissao, total:r.rows.length, novos, mudou, iguais, sairam};
+  const estr = SIS === 'saude' ? syncSaude(r.rows, false) : null;
+  return {arquivo, sis:SIS, mes:r.mes, emissao:r.emissao, total:r.rows.length, rows:r.rows, novos, mudou, iguais, sairam, estr};
 }
 function cargoSelect(id, sel){
   const groups = D.unidades.slice().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(u => u.cargos.length ? `<optgroup label="${esc(u.nome)}">${u.cargos.map(c =>
@@ -1472,13 +1536,18 @@ function renderImp(){
   const linhaP = (x, k, tipo) => `<tr><td class="n">${esc(x.m)}</td><td><b>${esc(x.n)}</b>${x.vobs ? `<div class="note">${esc(x.vobs)}</div>` : ''}</td>
       <td>${tipo === 'mudou' ? `<div class="note">antes: ${esc(x.p.fc || x.p.c)} · ${esc(x.p.fl || x.p.l)}</div>` : ''}${esc(x.c)}<div class="note">${esc(x.l)}</div>${tipo === 'mudou' ? `<div class="note"><i>${esc(x.motivo)}</i></div>` : ''}</td>
       <td><span class="chip c-v">${esc(x.v)}</span></td>
-      <td>${x.v === 'Comissionado' ? cargoSelect(`imp-${tipo}-${k}`, x.prop.cl) + (x.prop.cl ? `<div class="note">sugestão: ${esc(x.prop.por)}</div>` : '<div class="note">sem sugestão automática; escolha o cargo ou deixe sem correspondência</div>') : '<span class="note">não entra na estrutura de cargos da lei</span>'}</td></tr>`;
+      <td>${x.v === 'Comissionado' ? cargoSelect(`imp-${tipo}-${k}`, x.prop.cl) + (x.prop.cl ? `<div class="note">sugestão: ${esc(x.prop.por)}</div>` : '<div class="note">sem sugestão automática; escolha o cargo ou deixe sem correspondência</div>') : `<span class="note">${I.sis === 'saude' ? 'vai para a unidade da sua lotação' : 'não entra na estrutura de cargos da lei'}</span>`}</td></tr>`;
   const tab = (arr, tipo) => arr.length ? `<div class="tbl-wrap"><table><thead><tr><th class="n">Matrícula</th><th>Servidor</th><th>Cargo e lotação na folha</th><th>Vínculo</th><th>Cargo da lei</th></tr></thead><tbody>${arr.map((x, k) => linhaP(x, k, tipo)).join('')}</tbody></table></div>` : '<p class="note" style="margin:0">Nenhum.</p>';
   const saiTab = I.sairam.length ? `<div class="tbl-wrap"><table><thead><tr><th>Desligar</th><th class="n">Matrícula</th><th>Servidor</th><th>Cargo atual</th><th>Origem</th></tr></thead><tbody>${I.sairam.map((x, k) => `<tr>
       <td><input type="checkbox" id="imp-sai-${k}" ${x.marcar ? 'checked' : ''} aria-label="Desligar ${esc(x.p.n)}"></td><td class="n">${esc(x.p.m)}</td><td><b>${esc(x.p.n)}</b> <span class="chip c-v">${esc(x.p.v)}</span></td>
       <td>${esc(x.p.cl && C[x.p.cl] ? C[x.p.cl].nome : x.p.c)}<div class="note">${esc(U[x.p.u] ? U[x.p.u].nome : x.p.s)}</div></td>
       <td class="note">${x.p.f === FOLHA_NOME[I.sis] ? 'folha anterior' : 'cadastrado no sistema; pode ainda não estar na folha'}</td></tr>`).join('')}</tbody></table></div>` : '<p class="note" style="margin:0">Nenhum.</p>';
   const nCom = [...I.novos, ...I.mudou].filter(x => x.v === 'Comissionado').length;
+  const E = I.estr, temEstr = E && (E.novasU.length || E.novosC.length || E.ligar);
+  const estrHtml = temEstr ? `<details class="imp-sec" open><summary>Estrutura da Saúde: ${E.novasU.length} unidade(s) nova(s), ${E.novosC.length} cargo(s) novo(s), ${E.ligar} servidor(es) a ligar</summary>
+      <p class="note" style="margin:0 0 8px">Cada lotação da folha vira uma unidade, como uma secretaria. Lotações com “comissionados” no nome seguem a estrutura da lei (Secretaria de Saúde e Hospital); as demais são de contratados, e as de efetivos ficam como unidades de efetivos.</p>
+      ${E.novasU.length ? `<div class="tbl-wrap"><table><thead><tr><th>Unidade nova</th><th>Tipo</th><th>Cargos</th></tr></thead><tbody>${E.novasU.map(u => { const cs = E.novosC.filter(c => c._lot === u.lot); return `<tr><td><b>${esc(u.nome)}</b><div class="note">${esc(u.lot)}</div></td><td>${u.grupo === 'Unidades de efetivos' ? 'Efetivos' : 'Contratados'}</td><td class="note">${esc(cs.map(c => c.nome).join(', '))}</td></tr>`; }).join('')}</tbody></table></div>` : ''}</details>` : '';
+  const algo = I.novos.length + I.mudou.length + I.sairam.length + (temEstr ? 1 : 0);
   box.innerHTML = `<div class="callout ok">PDF <b>${esc(I.arquivo)}</b> · folha ${esc(SIS_NOME[I.sis])} de <b>${esc(I.mes || '?')}</b>${I.emissao ? ` (emitida em ${esc(I.emissao)})` : ''} · ${I.total} servidores lidos.</div>
     <div class="tiles">
       <div class="tile ok"><span class="k">Entraram</span><span class="v">${I.novos.length}</span><span class="d">matrículas novas</span></div>
@@ -1491,8 +1560,9 @@ function renderImp(){
     <details class="imp-sec" ${I.mudou.length ? 'open' : ''}><summary>Mudaram (${I.mudou.length})</summary>${tab(I.mudou, 'mudou')}</details>
     <details class="imp-sec" ${I.sairam.length ? 'open' : ''}><summary>Não constam no PDF (${I.sairam.length})</summary>
       <p class="note" style="margin:0 0 8px">Marcados serão desligados (saem das contagens e ficam na busca com a data). Desmarque quem não deve sair.</p>${saiTab}</details>
-    <div class="toolbar"><button type="button" class="btn primary" id="imp-aplicar" ${I.novos.length + I.mudou.length + I.sairam.length ? '' : 'disabled'}>Aplicar atualização da folha</button><button type="button" class="btn" id="imp-cancelar">Cancelar</button>
-      ${I.novos.length + I.mudou.length + I.sairam.length ? '' : '<span class="note">Nada a atualizar: o sistema já está igual a este PDF.</span>'}</div>`;
+    ${estrHtml}
+    <div class="toolbar"><button type="button" class="btn primary" id="imp-aplicar" ${algo ? '' : 'disabled'}>Aplicar atualização da folha</button><button type="button" class="btn" id="imp-cancelar">Cancelar</button>
+      ${algo ? '' : '<span class="note">Nada a atualizar: o sistema já está igual a este PDF.</span>'}</div>`;
   document.getElementById('imp-cancelar').addEventListener('click', () => { IMP = null; box.innerHTML = ''; });
   document.getElementById('imp-aplicar').addEventListener('click', aplicarImp);
 }
@@ -1501,7 +1571,7 @@ async function aplicarImp(){
   const hoje = new Date(), dt = hoje.toLocaleDateString('pt-BR'), hist = FULL.historico, folha = FOLHA_NOME[I.sis], ref = `folha de ${I.mes || dt}`;
   const val = id => { const el = document.getElementById(id); return el ? el.value : ''; };
   const enquadra = (p, x, selId) => {
-    if (x.v !== 'Comissionado') { delete p.cl; delete p.st; delete p.u; delete p.sym; return; }
+    if (x.v !== 'Comissionado') { if (I.sis !== 'saude') { delete p.cl; delete p.st; delete p.u; } delete p.sym; return; }
     const cl = val(selId);
     if (cl && C[cl]) { p.cl = cl; p.u = C[cl]._u.id; p.st = cl === x.prop.cl ? (x.prop.st === 'nao' ? 'provavel' : x.prop.st) : 'exata'; delete p.sym; }
     else { delete p.cl; p.st = 'nao'; p.u = lotUnitId(x.l) || x.prop.u; p.sym = symGuess(x.c); }
@@ -1527,12 +1597,17 @@ async function aplicarImp(){
     hist.unshift({d:hoje.toISOString(), s:I.sis, u:LOGIN, a:'Saída (folha)', n:p.n, det:`${p.cl && C[p.cl] ? C[p.cl].nome : p.c} – ${U[p.u] ? U[p.u].nome : p.s}`});
   });
   hist.unshift({d:hoje.toISOString(), s:I.sis, u:LOGIN, a:'Importação da folha', n:`Folha ${SIS_NOME[I.sis]} – ${I.mes}`, det:`${I.total} servidores no PDF · ${nN} entradas · ${nM} mudanças · ${nS} saídas`});
+  let estr = null;
+  if (I.sis === 'saude') {
+    estr = syncSaude(I.rows, true, dt);
+    if (estr.novasU.length || estr.novosC.length) hist.unshift({d:hoje.toISOString(), s:I.sis, u:LOGIN, a:'Alteração', n:'Estrutura da Saúde', det:`${estr.novasU.length} unidade(s) e ${estr.novosC.length} cargo(s) criados a partir das lotações da folha`});
+  }
   FULL.importacoes.push({sis:I.sis, mes:I.mes, emissao:I.emissao, d:hoje.toISOString(), u:LOGIN, total:I.total, entradas:nN, mudancas:nM, saidas:nS});
   FULL.pessoas.sort((a, b) => a.n.localeCompare(b.n, 'pt-BR'));
-  FULL.atualizado = hoje.toISOString(); FULL._rascunho = true;
+  FULL.atualizado = hoje.toISOString(); FULL._rascunho = true; markPend();
   lsSet(DRAFT_KEY, JSON.stringify(await encryptData()));
   IMP = null; refreshAll();
-  impBox().innerHTML = `<div class="callout ok">Folha ${esc(SIS_NOME[I.sis])} de ${esc(I.mes)} aplicada: ${nN} entrada${nN !== 1 ? 's' : ''}, ${nM} mudança${nM !== 1 ? 's' : ''}, ${nS} saída${nS !== 1 ? 's' : ''}. Para valer para todos, baixe o <b>dados.enc</b> abaixo e substitua no GitHub.</div>`;
+  impBox().innerHTML = `<div class="callout ok">Folha ${esc(SIS_NOME[I.sis])} de ${esc(I.mes)} aplicada: ${nN} entrada${nN !== 1 ? 's' : ''}, ${nM} mudança${nM !== 1 ? 's' : ''}, ${nS} saída${nS !== 1 ? 's' : ''}${estr && (estr.novasU.length || estr.novosC.length) ? `; ${estr.novasU.length} unidade(s) e ${estr.novosC.length} cargo(s) criados` : ''}. Para valer para todos, baixe o <b>dados.enc</b> abaixo e substitua no GitHub.</div>`;
 }
 
 /* ================= Painel de ferramentas ================= */
@@ -1556,14 +1631,15 @@ function renderCodes(){
 function renderTools(){
   renderCodes();
   const st = document.getElementById('save-state');
-  st.innerHTML = D._rascunho
-    ? `<div class="callout">Há alterações feitas neste navegador que ainda não estão no GitHub (${new Date(D.atualizado).toLocaleString('pt-BR')}).
+  const pend = FULL._rascunho ? getPend() : [];
+  st.innerHTML = pend.includes(SIS)
+    ? `<div class="callout">Há alterações no sistema ${SIS_NOME[SIS]} feitas neste navegador que ainda não estão no GitHub (${new Date(FULL.atualizado).toLocaleString('pt-BR')}). O arquivo dados.enc guarda os dois sistemas: baixe uma vez e substitua no GitHub.
        <div class="toolbar" style="margin-top:8px"><button type="button" class="btn primary" id="dl-dados">Baixar dados.enc</button><button type="button" class="btn" id="discard">Descartar alterações deste navegador</button></div></div>`
-    : `<div class="note">Dados em dia com o arquivo publicado${D.atualizado ? ' (última atualização ' + new Date(D.atualizado).toLocaleString('pt-BR') + ')' : ''}.</div>`;
+    : `<div class="note">Sistema ${SIS_NOME[SIS]} em dia com o arquivo publicado.</div>`;
   const dl = document.getElementById('dl-dados');
   if (dl) dl.addEventListener('click', async () => download('dados.enc', JSON.stringify(await encryptData())));
   const ds = document.getElementById('discard');
-  if (ds) ds.addEventListener('click', async () => { lsSet(DRAFT_KEY, null); const r = await fetch('dados.enc', {cache:'no-store'}); setFull(await decryptData(await r.json())); refreshAll(); });
+  if (ds) ds.addEventListener('click', async () => { clearDraft(); const r = await fetch('dados.enc', {cache:'no-store'}); setFull(await decryptData(await r.json())); refreshAll(); });
   document.getElementById('user-list').innerHTML = USERS.usuarios.map(u => `<span class="chip c-v">${esc(u.login)}${u.login === LOGIN ? ' (você)' : ''}</span>
     ${u.login !== LOGIN ? `<button type="button" class="btn small" data-rm="${esc(u.login)}">remover</button>` : ''}`).join(' ');
   document.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => {
