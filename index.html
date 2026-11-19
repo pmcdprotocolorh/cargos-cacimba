@@ -547,8 +547,8 @@ function renderGForm(){
     </div><div id="g-lista" class="g-lista"></div>
     <div class="g-grid">
       ${fld('g-uni', 'Secretaria de destino', `<select id="g-uni">${['pref', 'saude'].map(sy => `<optgroup label="${SIS_NOME[sy]}">${FULL.unidades.filter(u => u.sis === sy).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(u => `<option value="${u.id}" ${u.id === uid0 ? 'selected' : ''}>${esc(u.nome)} (${code(u)})</option>`).join('')}</optgroup>`).join('')}</select>`, 'Pode ser do outro sistema também.')}
-      ${fld('g-cargo', 'Cargo de destino', '<select id="g-cargo"></select>', 'Só aparecem cargos do mesmo vínculo do servidor.')}
-    </div><div id="g-info" class="note"></div><div class="toolbar"><button type="submit" class="btn primary">Remanejar</button></div>`;
+      ${fld('g-cargo', 'Cargo de destino', '<select id="g-cargo"></select>', 'Primeiro os cargos do mesmo vínculo do servidor; depois, os de outro tipo.')}
+    </div><div id="g-info" class="note"></div><div id="g-ajtipo-box" hidden></div><div class="toolbar"><button type="submit" class="btn primary">Remanejar</button></div>`;
   else if (ACAO === 'exonerar') f.innerHTML = `<div class="g-grid">
       ${fld('g-busca', 'Nome ou matrícula', '<input id="g-busca" type="search" autocomplete="off" placeholder="Digite para buscar">')}
     </div><div id="g-lista" class="g-lista"></div>${btn('Exonerar selecionado')}`;
@@ -588,7 +588,11 @@ function wireGForm(){
   if (ACAO === 'cargo') {
     const upd = () => { $('g-novosym').hidden = $('g-sym').value !== '__novo'; };
     $('g-sym').addEventListener('change', upd);
-    $('g-tipo').addEventListener('change', () => { if ($('g-tipo').value !== 'Comissionado') { $('g-sym').value = ''; upd(); } });
+    let tipoTocado = false;
+    $('g-tipo').addEventListener('change', () => { tipoTocado = true; if ($('g-tipo').value !== 'Comissionado') { $('g-sym').value = ''; upd(); } });
+    // na Saúde, fora da Secretaria de Saúde e do Hospital (estrutura da lei), o padrão é contrato
+    const tipoPadrao = () => { if (tipoTocado) return; const u = U[$('g-uni').value]; const t = SIS === 'saude' && u && !['saude', 'hosp'].includes(u.id) ? 'Contrato' : 'Comissionado'; $('g-tipo').value = t; if (t !== 'Comissionado') { $('g-sym').value = ''; upd(); } };
+    $('g-uni').addEventListener('change', tipoPadrao); tipoPadrao();
   }
   if (ACAO === 'excluir') {
     const btn = document.querySelector('#g-form button[type=submit]');
@@ -616,14 +620,16 @@ function wireGForm(){
       const p = pessoa(), u = U[$('g-uni').value];
       if (!u) return;
       const ok = c => !p || vincDoCargo(c) === p.v;
-      const opts = u.cargos.filter(ok).map(c => `<option value="${c.id}">${esc(c.nome)}${c.tipo ? ' [' + c.tipo.toLowerCase() + ']' : ''} – ${code(c)} · ${c.vagas} vaga${c.vagas !== 1 ? 's' : ''}</option>`).join('');
+      const optC = c => `<option value="${c.id}">${esc(c.nome)} [${vincDoCargo(c) === 'Contratado' ? 'contrato' : vincDoCargo(c).toLowerCase()}] – ${code(c)} · ${c.vagas} vaga${c.vagas !== 1 ? 's' : ''}</option>`;
+      const outros = u.cargos.filter(c => !ok(c));
+      const opts = u.cargos.filter(ok).map(optC).join('') + (outros.length ? `<optgroup label="Cargos de outro tipo de vínculo">${outros.map(optC).join('')}</optgroup>` : '');
       const nomeAtual = p && p.cl && C[p.cl] ? C[p.cl].nome : '';
       const podeCriar = u.auto && p && p.v !== 'Comissionado' && nomeAtual && !u.cargos.some(c => norm(c.nome) === norm(nomeAtual));
       const soLot = (podeCriar ? `<option value="__novo">Criar “${esc(nomeAtual)}” nesta unidade</option>` : '') + (p && p.v !== 'Comissionado' ? '<option value="__lot">Sem cargo: mudar só a lotação</option>' : '');
-      $('g-cargo').innerHTML = opts + soLot || '<option value="">Nenhum cargo compatível nesta secretaria</option>';
+      $('g-cargo').innerHTML = opts + soLot || '<option value="">Esta secretaria não tem cargos</option>';
       // sugere o cargo de mesmo nome do atual; senão, o primeiro com vaga
       const atual = p && p.cl && C[p.cl] ? norm(C[p.cl].nome) : null, lista = u.cargos.filter(ok);
-      const pre = (atual && lista.find(c => norm(c.nome) === atual && c.id !== p.cl)) || lista.find(c => c.vagas > 0 || u.auto);
+      const pre = (atual && lista.find(c => norm(c.nome) === atual && c.id !== p.cl)) || lista.find(c => c.vagas > 0 || u.auto) || (!lista.length && outros.find(c => !c.oc.length));
       if (podeCriar) $('g-cargo').value = '__novo'; else if (pre) $('g-cargo').value = pre.id; else if (soLot && !lista.length) $('g-cargo').value = '__lot';
       info();
     };
@@ -636,6 +642,14 @@ function wireGForm(){
         if (p.cl && c && p.cl === c.id) t += ' Ele já ocupa esse cargo.';
       }
       $('g-info').textContent = t;
+      const aj = $('g-ajtipo-box');
+      if (p && c && vincDoCargo(c) !== p.v) {
+        const novoTipo = p.v === 'Contratado' ? 'contrato' : p.v.toLowerCase();
+        aj.hidden = false;
+        aj.innerHTML = c.oc.length
+          ? `<span class="note">Este cargo é do tipo ${vincDoCargo(c) === 'Contratado' ? 'contrato' : vincDoCargo(c).toLowerCase()} e já tem ocupantes; o servidor continua ${p.v.toLowerCase()} e passa a ocupá-lo assim mesmo.</span>`
+          : `<label class="g-op" style="background:var(--warn-soft)"><input type="checkbox" id="g-ajtipo" checked> <span>Este cargo foi criado como <b>${vincDoCargo(c) === 'Contratado' ? 'contrato' : vincDoCargo(c).toLowerCase()}</b>, mas o servidor é <b>${p.v.toLowerCase()}</b>. Mudar o tipo do cargo para <b>${novoTipo}</b> (ele está vazio).</span></label>`;
+      } else { aj.hidden = true; aj.innerHTML = ''; }
     };
     const lista = () => {
       const t = $('g-busca').value.trim(), nt = norm(t).split(/\s+/).filter(Boolean);
@@ -748,6 +762,12 @@ async function submitGForm(e){
     }
     const c = C[cid]; if (!c) return gErro('Escolha o cargo de destino.');
     if (p.cl === c.id && p.st !== 'nao') return gErro(`${p.n} já ocupa este cargo.`);
+    const aj = document.getElementById('g-ajtipo');
+    if (aj && aj.checked && vincDoCargo(c) !== p.v && !c.oc.length) {
+      const antes = vincDoCargo(c);
+      if (p.v === 'Comissionado') delete c.tipo; else c.tipo = p.v === 'Contratado' ? 'Contrato' : 'Efetivo';
+      FULL.historico.unshift({d:new Date().toISOString(), s:SIS, u:LOGIN, a:'Alteração', n:c.nome, det:`Tipo do cargo ${code(c)}: ${antes.toLowerCase()} → ${vincDoCargo(c).toLowerCase()}`});
+    }
     const n = await commit([{sit:'Remanejado', psel:p.m, sel:c.id}], 'pelo sistema');
     if (u.sis !== SIS) { const s0 = SIS; SIS = u.sis; markPend(); SIS = s0; }
     return gOk(n, `<b>${esc(p.n)}</b> remanejado(a) para ${esc(c.nome)} – ${esc(u.nome)}.${outro}`);
